@@ -1,0 +1,15 @@
+[Unit]
+Description=The Hangar — Pi Relay
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/opt/hangar-relay
+ExecStart=/usr/bin/python3 /opt/hangar-relay/relay.py --server https://hangar.example.com --token YOUR_INGEST_TOKEN --interval 60
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

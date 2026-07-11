@@ -1,0 +1,167 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  passwordHash  String
+  role          String    @default("family")
+  createdAt     DateTime  @default(now())
+  maintenanceLogs MaintenanceLog[]
+  visits        Visit[]
+}
+
+model MaintenanceItem {
+  id             String   @id @default(cuid())
+  name           String
+  category       String
+  description    String
+  intervalDays   Int
+  intervalLabel  String
+  parts          String   @default("[]")
+  notes          String   @default("")
+  assignedTo     String   @default("")
+  lastCompletedAt DateTime?
+  nextDueAt      DateTime?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now())
+  logs           MaintenanceLog[]
+}
+
+model MaintenanceLog {
+  id           String   @id @default(cuid())
+  itemId       String
+  userId       String?
+  completedAt  DateTime @default(now())
+  completedBy  String
+  notes        String   @default("")
+  partsUsed    String   @default("[]")
+  createdAt    DateTime @default(now())
+  item         MaintenanceItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  user         User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model SystemStatus {
+  id        String   @id @default(cuid())
+  system    String
+  status    String
+  data      String   @default("{}")
+  recordedAt DateTime @default(now())
+
+  @@index([system, recordedAt])
+}
+
+model Alert {
+  id        String   @id @default(cuid())
+  system    String
+  severity  String
+  message   String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  resolvedAt DateTime?
+}
+
+model WeatherData {
+  id             String   @id @default(cuid())
+  station        String
+  airTemp        Float?
+  apparentTemp   Float?
+  humidity       Int?
+  windDir        String?
+  windSpdKmh     Int?
+  gustKmh        Int?
+  rainTrace      String?
+  cloud          String?
+  pressure       Float?
+  recordedAt     DateTime @default(now())
+
+  @@index([station, recordedAt])
+}
+
+model FireDanger {
+  id              String   @id @default(cuid())
+  district        String
+  dangerToday     String
+  dangerTomorrow  String
+  fireBanToday    Boolean
+  fireBanTomorrow Boolean
+  recordedAt      DateTime @default(now())
+}
+
+model PowerReading {
+  id              String   @id @default(cuid())
+  batterySoc      Float
+  batteryW        Float
+  solarW          Float
+  loadW           Float
+  gridW           Float
+  genStatus       Int
+  solarKwhToday   Float
+  loadKwhToday    Float
+  batteryInKwhToday  Float
+  batteryOutKwhToday Float
+  source          String   @default("select.live")
+  recordedAt      DateTime @default(now())
+
+  @@index([recordedAt])
+}
+
+model StarlinkStatus {
+  id              String   @id @default(cuid())
+  connected       Boolean
+  obstructionAvg  Float?
+  uptimeSeconds   Int?
+  downlinkThroughputBps Float?
+  uplinkThroughputBps   Float?
+  latencyMs       Float?
+  firmwareVersion String?
+  recordedAt      DateTime @default(now())
+
+  @@index([recordedAt])
+}
+
+model ReminderLog {
+  id           String   @id @default(cuid())
+  itemId       String
+  type         String
+  sentTo       String
+  sentAt       DateTime @default(now())
+
+  @@index([itemId, type, sentAt])
+}
+
+model RestockItem {
+  id          String    @id @default(cuid())
+  name        String
+  note        String    @default("")
+  category    String    @default("general")
+  addedBy     String
+  addedAt     DateTime  @default(now())
+  resolvedBy  String?
+  resolvedAt  DateTime?
+  isResolved  Boolean   @default(false)
+
+  @@index([isResolved, addedAt])
+}
+
+model Visit {
+  id          String    @id @default(cuid())
+  userId      String?
+  visitorName String
+  startDate   DateTime
+  endDate     DateTime
+  notes       String    @default("")
+  bringing    String    @default("")
+  createdAt   DateTime  @default(now())
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([startDate, endDate])
+}

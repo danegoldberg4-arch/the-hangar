@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+@theme {
+  --color-steel: #0f1115;
+  --color-steel-2: #16191e;
+  --color-steel-3: #1c2026;
+  --color-steel-4: #232830;
+  --color-galv: #9aa1ab;
+  --color-galv-dim: #646b75;
+  --color-iron: #b06a3f;
+  --color-iron-lt: #d4956a;
+  --color-sand: #e9e3d6;
+  --color-sand-dk: #d4cdba;
+  --color-paper: #f3efe7;
+  --color-forest: #2f3a30;
+  --color-forest-lt: #3d4a42;
+  --color-line: rgba(154, 161, 171, 0.12);
+  --color-line-bright: rgba(154, 161, 171, 0.2);
+
+  --font-sans: var(--font-archivo);
+  --font-narrow: var(--font-archivo-narrow);
+  --font-serif: var(--font-fraunces);
+
+  --color-background: var(--color-steel);
+  --color-foreground: var(--color-paper);
+}
+
+body {
+  background: var(--color-steel);
+  color: var(--color-paper);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.eyebrow {
+  font-family: var(--font-narrow);
+  text-transform: uppercase;
+  letter-spacing: 0.28em;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-galv-dim);
+}
+
+.lead {
+  font-family: var(--font-serif);
+  font-style: italic;
+}
+
+.card-surface {
+  background: linear-gradient(180deg, var(--color-steel-2) 0%, var(--color-steel) 100%);
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+}
+
+.card-surface:hover {
+  border-color: var(--color-line-bright);
+}
+
+@keyframes pulse-line {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.9; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
