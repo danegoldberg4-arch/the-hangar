@@ -43,12 +43,12 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4">
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <svg
             viewBox="0 0 24 24"
-            className="w-10 h-10 stroke-iron fill-none mx-auto mb-4"
+            className="w-10 h-10 stroke-iron fill-none mx-auto mb-3"
             strokeWidth={1.5}
           >
             <path d="M2 20h20M4 20V9l8-5 8 5v11M9 20v-6h6v6" />
@@ -56,13 +56,18 @@ export default function SignupPage() {
           <h1 className="font-narrow font-bold uppercase text-2xl tracking-tight text-paper">
             The Hangar
           </h1>
-          <p className="eyebrow mt-1">Join the family</p>
+          <p className="text-sm text-galv-dim mt-1">
+            Upper Kangaroo River · NSW
+          </p>
         </div>
 
         <div className="card-surface p-6">
-          <h2 className="font-narrow uppercase tracking-wider text-sm font-bold text-galv mb-4">
-            Create Account
+          <h2 className="font-narrow uppercase tracking-wider text-sm font-bold text-galv mb-2">
+            Join the family
           </h2>
+          <p className="text-xs text-galv-dim mb-4 leading-relaxed">
+            Create an account to see house status, log maintenance, plan visits, and note what needs restocking.
+          </p>
 
           {error && (
             <div className="bg-iron/5 border border-iron/20 text-iron text-sm rounded p-3 mb-4">
@@ -70,17 +75,17 @@ export default function SignupPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3">
             <div>
               <label className="font-narrow uppercase tracking-wider text-xs text-galv-dim block mb-1">
-                Name
+                Your name
               </label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                placeholder="Your name"
+                placeholder="e.g. Dane"
                 className="w-full bg-steel-3 border border-line rounded-lg px-4 py-2.5 text-paper text-sm focus:border-iron focus:outline-none transition-colors"
               />
             </div>
@@ -113,17 +118,17 @@ export default function SignupPage() {
             </div>
             <div>
               <label className="font-narrow uppercase tracking-wider text-xs text-galv-dim block mb-1">
-                Invite Code
+                Invite code
               </label>
               <input
                 type="text"
                 value={inviteCode}
                 onChange={(e) => setInviteCode(e.target.value)}
-                placeholder="Ask the admin for the code"
+                placeholder="Family code"
                 className="w-full bg-steel-3 border border-line rounded-lg px-4 py-2.5 text-paper text-sm focus:border-iron focus:outline-none transition-colors"
               />
               <p className="text-xs text-galv-dim mt-1">
-                First family member to sign up becomes admin (no code needed).
+                First person to sign up doesn&apos;t need a code.
               </p>
             </div>
             <button
@@ -137,12 +142,23 @@ export default function SignupPage() {
 
           <div className="mt-4 pt-4 border-t border-line text-center">
             <p className="text-sm text-galv-dim">
-              Have an account?{" "}
+              Already have an account?{" "}
               <a href="/login" className="text-iron hover:text-iron-lt transition-colors font-narrow uppercase tracking-wider text-xs">
                 Sign in
               </a>
             </p>
           </div>
+        </div>
+
+        <div className="mt-4 text-center">
+          <p className="text-xs text-galv-dim">
+            After signing in, add to your home screen for app-like access.
+          </p>
+          <p className="text-xs text-galv-dim mt-1">
+            <a href="/handbook" className="text-iron hover:text-iron-lt transition-colors">
+              Just visiting? View the house handbook →
+            </a>
+          </p>
         </div>
       </div>
     </div>

@@ -15,10 +15,11 @@
       "type": "image/png"
     }
   ],
-  "theme_color": "#15171b",
-  "background_color": "#15171b",
-  "start_url": "/",
+  "theme_color": "#0f1115",
+  "background_color": "#0f1115",
+  "start_url": "/?source=pwa",
   "display": "standalone",
   "orientation": "portrait",
+  "scope": "/",
   "categories": ["lifestyle", "productivity", "utilities"]
 }
