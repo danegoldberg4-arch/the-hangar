@@ -30,7 +30,7 @@ export async function PUT(
   const { id } = await ctx.params;
   const body = await request.json();
 
-  const { name, category, description, intervalDays, intervalLabel, parts, notes, assignedTo, isActive } = body;
+  const { name, category, description, intervalDays, intervalLabel, parts, notes, assignedTo, isActive, nextDueAt: overrideDueAt } = body;
 
   const existing = await prisma.maintenanceItem.findUnique({ where: { id } });
   if (!existing) {
@@ -39,7 +39,10 @@ export async function PUT(
 
   const newInterval = intervalDays !== undefined ? intervalDays : existing.intervalDays;
   let nextDueAt = existing.nextDueAt;
-  if (intervalDays !== undefined && existing.lastCompletedAt) {
+
+  if (overrideDueAt !== undefined) {
+    nextDueAt = overrideDueAt ? new Date(overrideDueAt) : null;
+  } else if (intervalDays !== undefined && existing.lastCompletedAt) {
     nextDueAt = computeNextDue(existing.lastCompletedAt, newInterval);
   }
 
