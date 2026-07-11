@@ -33,7 +33,7 @@ export default async function DashboardPage() {
   const noHistory = itemsWithStatus.filter((i) => i.status === "no_history");
 
   return (
-    <div className="max-w-[1180px] mx-auto px-4 sm:px-8 py-8">
+    <div className="max-w-[1180px] mx-auto px-4 sm:px-8 w-full overflow-x-hidden py-8">
       {/* Hero */}
       <div className="mb-10">
         <span className="eyebrow">Upper Kangaroo River · NSW</span>

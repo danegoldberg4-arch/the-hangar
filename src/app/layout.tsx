@@ -71,9 +71,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
+      <html
       lang="en"
-      className={`${archivo.variable} ${archivoNarrow.variable} ${fraunces.variable} h-full antialiased`}
+      className={`${archivo.variable} ${archivoNarrow.variable} ${fraunces.variable} h-full antialiased overflow-x-hidden`}
     >
       <head>
         <script
@@ -82,11 +82,11 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-full flex flex-col bg-steel text-paper">
+      <body className="min-h-full flex flex-col bg-steel text-paper overflow-x-hidden">
         <SerwistProvider swUrl="/serwist/sw.js">
           <Providers>
             <Nav />
-            <main className="flex-1">{children}</main>
+            <main className="flex-1 overflow-x-hidden">{children}</main>
           </Providers>
         </SerwistProvider>
       </body>

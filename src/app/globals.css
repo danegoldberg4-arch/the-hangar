@@ -25,6 +25,10 @@
   --color-foreground: var(--color-paper);
 }
 
+html {
+  overflow-x: hidden;
+}
+
 body {
   background: var(--color-steel);
   color: var(--color-paper);
@@ -32,6 +36,8 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  width: 100%;
+  position: relative;
 }
 
 .eyebrow {
@@ -61,6 +67,14 @@ body {
 @keyframes pulse-line {
   0%, 100% { opacity: 0.3; }
   50% { opacity: 0.9; }
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

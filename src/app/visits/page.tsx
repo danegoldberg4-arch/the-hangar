@@ -2,7 +2,7 @@ import { VisitCalendar } from "@/components/visits/visit-calendar";
 
 export default function VisitsPage() {
   return (
-    <div className="max-w-[1180px] mx-auto px-4 sm:px-8 py-8">
+    <div className="max-w-[1180px] mx-auto px-4 sm:px-8 w-full overflow-x-hidden py-8">
       <span className="eyebrow">Who&apos;s coming down</span>
       <h1 className="font-narrow font-bold uppercase text-3xl sm:text-4xl tracking-tight mt-1 text-paper mb-2">
         Visit Calendar

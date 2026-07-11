@@ -61,7 +61,7 @@ export default async function MaintenancePage() {
   ];
 
   return (
-    <div className="max-w-[1180px] mx-auto px-4 sm:px-8 py-8 sm:py-12">
+    <div className="max-w-[1180px] mx-auto px-4 sm:px-8 w-full overflow-x-hidden py-8 sm:py-12">
       <div className="flex items-baseline justify-between mb-8">
         <div>
           <span className="eyebrow">The logbook</span>

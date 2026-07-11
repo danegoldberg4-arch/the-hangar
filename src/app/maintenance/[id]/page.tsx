@@ -41,7 +41,7 @@ export default async function MaintenanceDetailPage({
   }
 
   return (
-    <div className="max-w-[1180px] mx-auto px-4 sm:px-8 py-8 sm:py-12">
+    <div className="max-w-[1180px] mx-auto px-4 sm:px-8 w-full overflow-x-hidden py-8 sm:py-12">
       <Link
         href="/maintenance"
         className="font-narrow uppercase tracking-wider text-xs text-galv hover:text-iron-lt transition-colors mb-4 inline-block"
