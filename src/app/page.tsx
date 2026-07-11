@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import {
   calculateStatus,
@@ -8,6 +9,9 @@ import { RestockSummary } from "@/components/restock/restock-summary";
 import { RainWidget } from "@/components/weather/rain-widget";
 import { ForecastWidget } from "@/components/weather/forecast-widget";
 import { VisitSummary } from "@/components/visits/visit-summary";
+
+export const maxDuration = 30;
+export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const items = await prisma.maintenanceItem.findMany({
@@ -73,7 +77,9 @@ export default async function DashboardPage() {
         <h2 className="font-narrow uppercase tracking-[0.15em] text-sm font-bold text-galv-dim mb-4">
           Live Monitoring
         </h2>
-        <MonitoringPanel />
+        <Suspense fallback={<div className="card-surface p-5 text-sm text-galv-dim">Loading monitoring data...</div>}>
+          <MonitoringPanel />
+        </Suspense>
       </div>
 
       {/* Maintenance + Restock + Visits grid */}
@@ -102,17 +108,25 @@ export default async function DashboardPage() {
 
         {/* Restock Summary */}
         <div className="lg:col-span-2">
-          <RestockSummary />
+          <Suspense fallback={<div className="card-surface p-5 text-sm text-galv-dim">Loading...</div>}>
+            <RestockSummary />
+          </Suspense>
         </div>
       </div>
 
       {/* Visits + Rain + Forecast */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
         <div className="lg:col-span-1">
-          <VisitSummary />
+          <Suspense fallback={<div className="card-surface p-5 text-sm text-galv-dim">Loading...</div>}>
+            <VisitSummary />
+          </Suspense>
         </div>
-        <RainWidget />
-        <ForecastWidget />
+        <Suspense fallback={<div className="card-surface p-5 text-sm text-galv-dim">Loading...</div>}>
+          <RainWidget />
+        </Suspense>
+        <Suspense fallback={<div className="card-surface p-5 text-sm text-galv-dim">Loading...</div>}>
+          <ForecastWidget />
+        </Suspense>
       </div>
 
       {/* Stats bar */}
