@@ -68,3 +68,38 @@ body {
     transition: none !important;
   }
 }
+
+/* ===== LIGHT MODE ===== */
+@media (prefers-color-scheme: light) {
+  :root {
+    --color-steel: #f5f2ec;
+    --color-steel-2: #ffffff;
+    --color-steel-3: #e9e3d6;
+    --color-steel-4: #dcd5c4;
+    --color-galv: #4a5058;
+    --color-galv-dim: #7a818b;
+    --color-iron: #a05a2f;
+    --color-iron-lt: #b8704a;
+    --color-paper: #1a1d22;
+    --color-forest: #3d4a42;
+    --color-forest-lt: #4f5e54;
+    --color-line: rgba(0, 0, 0, 0.08);
+    --color-line-bright: rgba(0, 0, 0, 0.14);
+    --color-background: var(--color-steel);
+    --color-foreground: var(--color-paper);
+  }
+
+  body {
+    background: var(--color-steel);
+    color: var(--color-paper);
+  }
+
+  .card-surface {
+    background: linear-gradient(180deg, var(--color-steel-2) 0%, #f9f7f2 100%);
+    border: 1px solid var(--color-line);
+  }
+
+  .card-surface:hover {
+    border-color: var(--color-line-bright);
+  }
+}
