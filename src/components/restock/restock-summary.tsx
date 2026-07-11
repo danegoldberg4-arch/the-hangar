@@ -2,13 +2,16 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 
 export async function RestockSummary() {
-  const items = await prisma.restockItem.findMany({
-    where: { isResolved: false },
-    orderBy: { addedAt: "desc" },
-    take: 5,
-  });
+  const [items, totalCount] = await Promise.all([
+    prisma.restockItem.findMany({
+      where: { isResolved: false },
+      orderBy: { addedAt: "desc" },
+      take: 5,
+    }),
+    prisma.restockItem.count({ where: { isResolved: false } }),
+  ]);
 
-  const count = items.length;
+  const count = totalCount;
 
   return (
     <div className="card-surface p-5">
@@ -40,6 +43,9 @@ export async function RestockSummary() {
               </span>
             </div>
           ))}
+          {count > items.length && (
+            <div className="text-xs text-galv-dim pt-1">+{count - items.length} more</div>
+          )}
         </div>
       )}
     </div>
