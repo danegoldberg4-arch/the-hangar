@@ -6,6 +6,7 @@ import {
 import { MonitoringPanel } from "@/components/monitoring/monitoring-panel";
 import { RestockSummary } from "@/components/restock/restock-summary";
 import { RainWidget } from "@/components/weather/rain-widget";
+import { ForecastWidget } from "@/components/weather/forecast-widget";
 import { VisitSummary } from "@/components/visits/visit-summary";
 
 export default async function DashboardPage() {
@@ -105,12 +106,13 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Visits + Rain */}
+      {/* Visits + Rain + Forecast */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-1">
           <VisitSummary />
         </div>
         <RainWidget />
+        <ForecastWidget />
       </div>
 
       {/* Stats bar */}
