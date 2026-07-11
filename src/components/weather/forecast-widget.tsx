@@ -1,4 +1,5 @@
 import { fetchForecast, getWeatherLabel } from "@/lib/integrations/forecast";
+import { WeatherIcon } from "@/components/weather/weather-icon";
 
 const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -38,12 +39,15 @@ export async function ForecastWidget() {
       </div>
 
       {/* Today */}
-      <div className="flex items-baseline gap-3 mb-4">
-        <div>
-          <span className="font-narrow font-bold text-3xl text-paper">{today.maxTemp.toFixed(0)}°</span>
-          <span className="font-narrow text-lg text-galv-dim ml-1">{today.minTemp.toFixed(0)}°</span>
+      <div className="flex items-center gap-4 mb-4">
+        <div className="text-amber-400 w-10 h-10 flex-none">
+          <WeatherIcon code={today.weatherCode} />
         </div>
-        <div className="ml-auto text-right">
+        <div>
+          <div className="flex items-baseline gap-1.5">
+            <span className="font-narrow font-bold text-3xl text-paper">{today.maxTemp.toFixed(0)}°</span>
+            <span className="font-narrow text-lg text-galv-dim">{today.minTemp.toFixed(0)}°</span>
+          </div>
           <div className="font-narrow text-xs text-galv">{getWeatherLabel(today.weatherCode)}</div>
           {today.precipitation > 0 && (
             <div className="font-narrow text-xs text-sky-400">{today.precipitation}mm rain</div>
@@ -62,7 +66,10 @@ export async function ForecastWidget() {
               <div className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">
                 {isTomorrow ? "Tom" : dayNames[date.getDay()]}
               </div>
-              <div className="font-narrow font-bold text-base text-paper mt-1">
+              <div className="text-galv-dim w-6 h-6 mx-auto my-1">
+                <WeatherIcon code={day.weatherCode} />
+              </div>
+              <div className="font-narrow font-bold text-base text-paper">
                 {day.maxTemp.toFixed(0)}°
               </div>
               <div className="font-narrow text-[0.65rem] text-galv-dim">
