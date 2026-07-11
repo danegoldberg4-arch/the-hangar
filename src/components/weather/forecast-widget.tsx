@@ -13,7 +13,7 @@ export async function ForecastWidget() {
 
   if (!forecast) {
     return (
-      <div className="card-surface p-5">
+      <div className="card-surface p-4 sm:p-5">
         <div className="flex items-center gap-2 mb-3">
           <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
           <h3 className="font-narrow uppercase tracking-wider text-xs font-bold text-galv">Forecast</h3>
@@ -27,7 +27,7 @@ export async function ForecastWidget() {
   const futureDays = forecast.daily.slice(1);
 
   return (
-    <div className="card-surface p-5">
+    <div className="card-surface p-4 sm:p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
@@ -57,7 +57,7 @@ export async function ForecastWidget() {
 
       {/* Coming days */}
       <div className="h-px bg-line mb-3" />
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-4 gap-1 sm:gap-2">
         {futureDays.map((day) => {
           const date = new Date(day.date);
           const isTomorrow = day === futureDays[0];

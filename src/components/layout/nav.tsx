@@ -14,7 +14,7 @@ export async function Nav() {
   const session = await auth();
 
   return (
-    <header className="sticky top-0 z-50 border-b border-line bg-steel/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 border-b border-line bg-steel">
       <div className="max-w-[1180px] mx-auto px-4 sm:px-8 flex items-center justify-between h-14">
         <Link href="/" className="flex items-center gap-2.5 group">
           <svg
@@ -36,7 +36,7 @@ export async function Nav() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="font-narrow uppercase tracking-wider text-xs font-semibold px-3 py-2 text-galv hover:text-paper hover:bg-steel-3 rounded-md transition-colors"
+                className="font-narrow uppercase tracking-wider text-xs font-semibold px-2 sm:px-3 py-2 text-galv hover:text-paper hover:bg-steel-3 rounded-md transition-colors"
               >
                 {item.label}
               </Link>
@@ -60,7 +60,8 @@ export async function Nav() {
                   type="submit"
                   className="font-narrow uppercase tracking-wider text-[0.65rem] text-galv-dim hover:text-iron-lt transition-colors px-2 py-1"
                 >
-                  Exit
+                  <span className="hidden sm:inline">Exit</span>
+                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 sm:hidden" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" /></svg>
                 </button>
               </form>
             </div>

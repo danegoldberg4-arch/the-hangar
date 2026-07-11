@@ -6,7 +6,7 @@ export async function RainWidget() {
   const maxDaily = Math.max(...rain.dailyHistory.map((d) => d.total), 0.1);
 
   return (
-    <div className="card-surface p-5">
+    <div className="card-surface p-4 sm:p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
@@ -42,7 +42,7 @@ export async function RainWidget() {
       </div>
 
       {rain.dailyHistory.length > 1 && (
-        <div className="flex items-end gap-[2px] h-10">
+        <div className="flex items-end gap-[2px] h-10 overflow-hidden">
           {rain.dailyHistory.map((d) => {
             const height = Math.max((d.total / maxDaily) * 100, 2);
             const isToday = d.date === new Date().toISOString().slice(0, 10);

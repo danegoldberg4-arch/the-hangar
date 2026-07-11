@@ -37,7 +37,7 @@ export default async function DashboardPage() {
       {/* Hero */}
       <div className="mb-10">
         <span className="eyebrow">Upper Kangaroo River · NSW</span>
-        <h1 className="font-narrow font-bold uppercase text-4xl sm:text-5xl tracking-tight mt-2 text-paper">
+        <h1 className="font-narrow font-bold uppercase text-3xl sm:text-5xl tracking-tight mt-2 text-paper">
           The Hangar
         </h1>
         <p className="lead text-lg text-galv mt-2 max-w-xl">
@@ -77,7 +77,7 @@ export default async function DashboardPage() {
         <h2 className="font-narrow uppercase tracking-[0.15em] text-sm font-bold text-galv-dim mb-4">
           Live Monitoring
         </h2>
-        <Suspense fallback={<div className="card-surface p-5 text-sm text-galv-dim">Loading monitoring data...</div>}>
+        <Suspense fallback={<div className="card-surface p-4 sm:p-5 text-sm text-galv-dim">Loading monitoring data...</div>}>
           <MonitoringPanel />
         </Suspense>
       </div>
@@ -85,7 +85,7 @@ export default async function DashboardPage() {
       {/* Maintenance + Restock + Visits grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
         {/* Maintenance Summary */}
-        <div className="card-surface p-5">
+        <div className="card-surface p-4 sm:p-5">
           <div className="flex items-baseline justify-between mb-4">
             <h3 className="font-narrow uppercase tracking-wider text-sm font-bold text-paper">
               Maintenance
@@ -108,7 +108,7 @@ export default async function DashboardPage() {
 
         {/* Restock Summary */}
         <div className="lg:col-span-2">
-          <Suspense fallback={<div className="card-surface p-5 text-sm text-galv-dim">Loading...</div>}>
+          <Suspense fallback={<div className="card-surface p-4 sm:p-5 text-sm text-galv-dim">Loading...</div>}>
             <RestockSummary />
           </Suspense>
         </div>
@@ -117,14 +117,14 @@ export default async function DashboardPage() {
       {/* Visits + Rain + Forecast */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
         <div className="lg:col-span-1">
-          <Suspense fallback={<div className="card-surface p-5 text-sm text-galv-dim">Loading...</div>}>
+          <Suspense fallback={<div className="card-surface p-4 sm:p-5 text-sm text-galv-dim">Loading...</div>}>
             <VisitSummary />
           </Suspense>
         </div>
-        <Suspense fallback={<div className="card-surface p-5 text-sm text-galv-dim">Loading...</div>}>
+        <Suspense fallback={<div className="card-surface p-4 sm:p-5 text-sm text-galv-dim">Loading...</div>}>
           <RainWidget />
         </Suspense>
-        <Suspense fallback={<div className="card-surface p-5 text-sm text-galv-dim">Loading...</div>}>
+        <Suspense fallback={<div className="card-surface p-4 sm:p-5 text-sm text-galv-dim">Loading...</div>}>
           <ForecastWidget />
         </Suspense>
       </div>

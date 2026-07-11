@@ -74,13 +74,13 @@ export default async function MaintenanceDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Details */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="card-surface p-6">
+          <div className="card-surface p-4 sm:p-6">
             <h2 className="font-narrow uppercase tracking-wider text-sm font-bold text-galv mb-3">
               Details
             </h2>
             <p className="text-paper text-sm leading-relaxed mb-4">{item.description}</p>
 
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div>
                 <dt className="font-narrow uppercase tracking-wider text-[0.65rem] text-galv-dim">
                   Interval
@@ -153,7 +153,7 @@ export default async function MaintenanceDetailPage({
           </div>
 
           {/* Logbook History */}
-          <div className="card-surface p-6">
+          <div className="card-surface p-4 sm:p-6">
             <h2 className="font-narrow uppercase tracking-wider text-sm font-bold text-galv mb-4">
               Logbook History ({item.logs.length})
             </h2>
@@ -188,7 +188,7 @@ export default async function MaintenanceDetailPage({
 
         {/* Log Form */}
         <div className="lg:col-span-1">
-          <div className="card-surface p-6 sticky top-20">
+          <div className="card-surface p-4 sm:p-6 sticky top-20">
             <h2 className="font-narrow uppercase tracking-wider text-sm font-bold text-galv mb-4">
               Log Completion
             </h2>

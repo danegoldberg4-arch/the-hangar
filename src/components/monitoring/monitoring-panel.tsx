@@ -52,7 +52,7 @@ export async function MonitoringPanel() {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
       {/* Power */}
-      <div className="card-surface p-5">
+      <div className="card-surface p-4 sm:p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
@@ -97,7 +97,7 @@ export async function MonitoringPanel() {
       </div>
 
       {/* Weather */}
-      <div className="card-surface p-5">
+      <div className="card-surface p-4 sm:p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
@@ -119,20 +119,20 @@ export async function MonitoringPanel() {
               </span>
             </div>
             <div className="h-px bg-line" />
-            <div className="grid grid-cols-3 gap-2">
-              <div>
-                <div className="font-narrow font-bold text-base text-galv">{weather.humidity ?? "—"}%</div>
+            <div className="grid grid-cols-3 gap-2 sm:gap-2">
+              <div className="min-w-0">
+                <div className="font-narrow font-bold text-sm sm:text-base text-galv">{weather.humidity ?? "—"}%</div>
                 <div className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">Humidity</div>
               </div>
               <div>
-                <div className="font-narrow font-bold text-base text-galv">
+                <div className="font-narrow font-bold text-sm sm:text-base text-galv">
                   {weather.windDir && weather.windSpdKmh !== null ? `${weather.windSpdKmh}` : "—"}
                   <span className="text-xs text-galv-dim ml-0.5">km/h</span>
                 </div>
                 <div className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">{weather.windDir || "Wind"}</div>
               </div>
               <div>
-                <div className="font-narrow font-bold text-base text-galv">{weather.rainTrace || "0.0"}mm</div>
+                <div className="font-narrow font-bold text-sm sm:text-base text-galv">{weather.rainTrace || "0.0"}mm</div>
                 <div className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">Rain</div>
               </div>
             </div>
@@ -180,7 +180,7 @@ export async function MonitoringPanel() {
 
       {/* Warnings */}
       {warnings.length > 0 && (
-        <div className="card-surface p-5 border-amber-900/30">
+        <div className="card-surface p-4 sm:p-5 border-amber-900/30">
           <div className="flex items-center gap-2 mb-3">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
             <h3 className="font-narrow uppercase tracking-wider text-xs font-bold text-galv">
@@ -204,7 +204,7 @@ export async function MonitoringPanel() {
       )}
 
       {/* Starlink */}
-      <div className={`card-surface p-5 ${warnings.length === 0 ? "sm:col-span-1" : ""}`}>
+      <div className={`card-surface p-4 sm:p-5 ${warnings.length === 0 ? "sm:col-span-1" : ""}`}>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <span className={`w-1.5 h-1.5 rounded-full ${starlink?.connected ? "bg-green-400" : "bg-galv-dim"}`} />

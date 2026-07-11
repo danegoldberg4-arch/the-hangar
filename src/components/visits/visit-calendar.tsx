@@ -208,7 +208,7 @@ export function VisitCalendar() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       {/* Calendar */}
-      <div className="lg:col-span-2 card-surface p-5">
+      <div className="lg:col-span-2 card-surface p-4 sm:p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-narrow uppercase tracking-wider text-sm font-bold text-paper">
             {monthNames[currentMonth]} {currentYear}
@@ -241,14 +241,14 @@ export function VisitCalendar() {
         {/* Day headers */}
         <div className="grid grid-cols-7 mb-1">
           {dayNames.map((d) => (
-            <div key={d} className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim text-center py-1">
+            <div key={d} className="font-narrow uppercase tracking-wider text-[0.5rem] sm:text-[0.55rem] text-galv-dim text-center py-1">
               {d}
             </div>
           ))}
         </div>
 
         {/* Calendar grid */}
-        <div className="grid grid-cols-7 gap-[2px]">
+        <div className="grid grid-cols-7 gap-[1px] sm:gap-[2px]">
           {weeks.flat().map((day, i) => {
             if (day === null) {
               return <div key={i} className="aspect-square" />;
@@ -269,7 +269,7 @@ export function VisitCalendar() {
                     openForm(dateStr);
                   }
                 }}
-                className={`aspect-square rounded flex flex-col items-center justify-center text-xs transition-colors relative ${
+                className={`aspect-square rounded flex flex-col items-center justify-center text-[0.65rem] sm:text-xs transition-colors relative ${
                   today
                     ? "bg-iron/20 border border-iron/30"
                     : occupied
@@ -337,7 +337,7 @@ export function VisitCalendar() {
       {/* Sidebar — upcoming + form */}
       <div className="space-y-4">
         {/* Upcoming */}
-        <div className="card-surface p-5">
+        <div className="card-surface p-4 sm:p-5">
           <h4 className="font-narrow uppercase tracking-wider text-xs font-bold text-galv mb-3">
             Upcoming
           </h4>
@@ -376,7 +376,7 @@ export function VisitCalendar() {
             + Plan a Visit
           </button>
         ) : (
-          <form onSubmit={handleSubmit} className="card-surface p-5 space-y-3">
+          <form onSubmit={handleSubmit} className="card-surface p-4 sm:p-5 space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="font-narrow uppercase tracking-wider text-xs font-bold text-galv">
                 {editingVisit ? "Edit Visit" : "New Visit"}
