@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { auth, signOut } from "@/lib/auth";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const navItems = [
   { href: "/", label: "Dashboard" },
@@ -41,6 +42,8 @@ export async function Nav() {
               </Link>
             ))}
           </nav>
+
+          <ThemeToggle />
 
           {session?.user ? (
             <div className="flex items-center gap-2 ml-2 pl-2 border-l border-line">

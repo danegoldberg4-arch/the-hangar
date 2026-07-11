@@ -27,11 +27,11 @@ export function calculateStatus(
   lastCompletedAt: Date | null,
   nextDueAt: Date | null
 ): { status: MaintenanceStatus; daysUntilDue: number | null } {
-  if (intervalDays === 0) {
+  if (intervalDays === 0 && !nextDueAt) {
     return { status: "as_needed", daysUntilDue: null };
   }
 
-  if (!lastCompletedAt || !nextDueAt) {
+  if (!nextDueAt) {
     return { status: "no_history", daysUntilDue: null };
   }
 
