@@ -8,12 +8,6 @@ function windDirToText(deg: number): string {
   return dirs[Math.round(deg / 22.5) % 16];
 }
 
-function formatTime(iso: string): string {
-  const time = iso.split("T")[1];
-  const [h, m] = time.split(":");
-  return `${h}:${m}`;
-}
-
 export async function ForecastWidget() {
   const forecast = await fetchForecast();
 
@@ -93,7 +87,7 @@ export async function ForecastWidget() {
 
       {/* Current conditions footer */}
       <div className="h-px bg-line mt-4 mb-3" />
-      <div className="flex flex-wrap items-center justify-between gap-y-2 text-xs">
+      <div className="flex items-center justify-between text-xs">
         <div className="flex items-center gap-3">
           <span className="font-narrow text-galv-dim">
             Now <span className="text-paper">{forecast.current.temp.toFixed(0)}°</span>
@@ -102,22 +96,7 @@ export async function ForecastWidget() {
             <span className="text-paper">{forecast.current.humidity}%</span> hum
           </span>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="font-narrow text-galv-dim flex items-center gap-1">
-            <svg viewBox="0 0 24 24" className="w-3 h-3 text-amber-400" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4l1.4-1.4M17 7l1.4-1.4" />
-            </svg>
-            <span className="text-paper">{formatTime(forecast.sunrise)}</span>
-          </span>
-          <span className="font-narrow text-galv-dim flex items-center gap-1">
-            <svg viewBox="0 0 24 24" className="w-3 h-3 text-iron-lt" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-            </svg>
-            <span className="text-paper">{formatTime(forecast.sunset)}</span>
-          </span>
-        </div>
-        <span className="font-narrow text-galv-dim w-full">
+        <span className="font-narrow text-galv-dim">
           <span className="text-paper">{forecast.current.windSpeed.toFixed(0)}</span>km/h {windDirToText(forecast.current.windDir)}
         </span>
       </div>

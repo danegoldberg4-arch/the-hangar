@@ -7,6 +7,7 @@ import {
   getLatestFireDanger,
 } from "@/lib/integrations/weather";
 import { getLatestPower, fetchPowerData } from "@/lib/integrations/selectlive";
+import { fetchSunTimes } from "@/lib/integrations/forecast";
 
 const fireDangerConfig: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   NONE: { label: "None", color: "text-galv-dim", bg: "bg-steel-2", dot: "bg-galv-dim" },
@@ -42,11 +43,12 @@ export async function MonitoringPanel() {
     !existingPower ||
     (now.getTime() - existingPower.timestamp * 1000) / 60000 > STALE_THRESHOLD_MIN;
 
-  const [freshWeather, freshFdr, warnings, freshPower] = await Promise.all([
+  const [freshWeather, freshFdr, warnings, freshPower, sunTimes] = await Promise.all([
     weatherStale ? fetchWeatherObservation() : Promise.resolve(null),
     fdrStale ? fetchFireDanger() : Promise.resolve(null),
     fetchWeatherWarnings(),
     powerStale ? fetchPowerData() : Promise.resolve(null),
+    fetchSunTimes(),
   ]);
 
   const weather = freshWeather || (await getLatestWeather());
@@ -176,6 +178,26 @@ export async function MonitoringPanel() {
                 <div className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">Rain</div>
               </div>
             </div>
+            {sunTimes && (
+              <>
+                <div className="h-px bg-line" />
+                <div className="flex items-center justify-between">
+                  <span className="font-narrow text-galv-dim flex items-center gap-1">
+                    <svg viewBox="0 0 24 24" className="w-3 h-3 text-amber-400" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round">
+                      <circle cx="12" cy="12" r="3" />
+                      <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4l1.4-1.4M17 7l1.4-1.4" />
+                    </svg>
+                    <span className="text-paper text-sm">{sunTimes.sunrise.split("T")[1]}</span>
+                  </span>
+                  <span className="font-narrow text-galv-dim flex items-center gap-1">
+                    <svg viewBox="0 0 24 24" className="w-3 h-3 text-iron-lt" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round">
+                      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                    </svg>
+                    <span className="text-paper text-sm">{sunTimes.sunset.split("T")[1]}</span>
+                  </span>
+                </div>
+              </>
+            )}
           </div>
         ) : (
           <p className="text-xs text-galv-dim">Fetching from BOM...</p>

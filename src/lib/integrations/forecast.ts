@@ -53,6 +53,18 @@ export function getWeatherLabel(code: number): string {
   return WMO_CODES[code]?.label || "—";
 }
 
+export async function fetchSunTimes(): Promise<{ sunrise: string; sunset: string } | null> {
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&daily=sunrise,sunset&timezone=Australia/Sydney&forecast_days=1`;
+    const res = await fetch(url, { next: { revalidate: 0 } });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return { sunrise: data.daily.sunrise[0], sunset: data.daily.sunset[0] };
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchForecast(): Promise<WeatherForecast | null> {
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,sunrise,sunset&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,precipitation&timezone=Australia/Sydney&forecast_days=5`;
