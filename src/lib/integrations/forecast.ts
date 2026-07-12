@@ -65,6 +65,34 @@ export async function fetchSunTimes(): Promise<{ sunrise: string; sunset: string
   }
 }
 
+export interface CurrentConditions {
+  temp: number;
+  humidity: number;
+  windSpeed: number;
+  windDir: number;
+  precipitation: number;
+  weatherCode: number;
+}
+
+export async function fetchCurrentWeather(): Promise<CurrentConditions | null> {
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,precipitation,weather_code&timezone=Australia/Sydney`;
+    const res = await fetch(url, { next: { revalidate: 0 } });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return {
+      temp: data.current.temperature_2m,
+      humidity: data.current.relative_humidity_2m,
+      windSpeed: data.current.wind_speed_10m,
+      windDir: data.current.wind_direction_10m,
+      precipitation: data.current.precipitation,
+      weatherCode: data.current.weather_code,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchForecast(): Promise<WeatherForecast | null> {
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,sunrise,sunset&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,precipitation&timezone=Australia/Sydney&forecast_days=5`;

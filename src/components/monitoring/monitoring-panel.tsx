@@ -7,7 +7,8 @@ import {
   getLatestFireDanger,
 } from "@/lib/integrations/weather";
 import { getLatestPower, fetchPowerData } from "@/lib/integrations/selectlive";
-import { fetchSunTimes } from "@/lib/integrations/forecast";
+import { fetchSunTimes, fetchCurrentWeather, getWeatherLabel } from "@/lib/integrations/forecast";
+import { WeatherIcon } from "@/components/weather/weather-icon";
 
 const fireDangerConfig: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   NONE: { label: "None", color: "text-galv-dim", bg: "bg-steel-2", dot: "bg-galv-dim" },
@@ -20,6 +21,11 @@ const fireDangerConfig: Record<string, { label: string; color: string; bg: strin
 function formatPower(w: number): string {
   if (Math.abs(w) >= 1000) return `${(w / 1000).toFixed(1)}kW`;
   return `${Math.round(w)}W`;
+}
+
+function windDirToText(deg: number): string {
+  const dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+  return dirs[Math.round(deg / 22.5) % 16];
 }
 
 const STALE_THRESHOLD_MIN = 15;
@@ -43,15 +49,15 @@ export async function MonitoringPanel() {
     !existingPower ||
     (now.getTime() - existingPower.timestamp * 1000) / 60000 > STALE_THRESHOLD_MIN;
 
-  const [freshWeather, freshFdr, warnings, freshPower, sunTimes] = await Promise.all([
+  const [freshWeather, freshFdr, warnings, freshPower, sunTimes, currentWeather] = await Promise.all([
     weatherStale ? fetchWeatherObservation() : Promise.resolve(null),
     fdrStale ? fetchFireDanger() : Promise.resolve(null),
     fetchWeatherWarnings(),
     powerStale ? fetchPowerData() : Promise.resolve(null),
     fetchSunTimes(),
+    fetchCurrentWeather(),
   ]);
 
-  const weather = freshWeather || (await getLatestWeather());
   const fireDanger = freshFdr || (await getLatestFireDanger());
   const power = freshPower || existingPower;
   const fdr = fireDanger ? fireDangerConfig[fireDanger.dangerToday] || fireDangerConfig.NONE : null;
@@ -146,35 +152,40 @@ export async function MonitoringPanel() {
             <h3 className="font-narrow uppercase tracking-wider text-xs font-bold text-galv">Weather</h3>
           </div>
           <span className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">
-            {weather?.station || "—"}
+            Kangaroo Valley
           </span>
         </div>
-        {weather ? (
+        {currentWeather ? (
           <div className="space-y-3">
-            <div className="flex items-baseline gap-1">
-              <span className="font-narrow font-bold text-3xl text-paper">
-                {weather.airTemp !== null ? weather.airTemp.toFixed(0) : "—"}
-              </span>
-              <span className="font-narrow text-sm text-galv-dim">°C</span>
-              <span className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim ml-auto">
-                {weather.cloud || "—"}
+            <div className="flex items-center gap-3">
+              <div className="text-amber-400 w-8 h-8 flex-none">
+                <WeatherIcon code={currentWeather.weatherCode} />
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="font-narrow font-bold text-3xl text-paper">
+                  {currentWeather.temp.toFixed(0)}
+                </span>
+                <span className="font-narrow text-sm text-galv-dim">°C</span>
+              </div>
+              <span className="font-narrow text-xs text-galv ml-auto">
+                {getWeatherLabel(currentWeather.weatherCode)}
               </span>
             </div>
             <div className="h-px bg-line" />
             <div className="grid grid-cols-3 gap-2 sm:gap-2">
               <div className="min-w-0">
-                <div className="font-narrow font-bold text-sm sm:text-base text-galv">{weather.humidity ?? "—"}%</div>
+                <div className="font-narrow font-bold text-sm sm:text-base text-galv">{currentWeather.humidity}%</div>
                 <div className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">Humidity</div>
               </div>
               <div>
                 <div className="font-narrow font-bold text-sm sm:text-base text-galv">
-                  {weather.windDir && weather.windSpdKmh !== null ? `${weather.windSpdKmh}` : "—"}
+                  {currentWeather.windSpeed.toFixed(0)}
                   <span className="text-xs text-galv-dim ml-0.5">km/h</span>
                 </div>
-                <div className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">{weather.windDir || "Wind"}</div>
+                <div className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">{windDirToText(currentWeather.windDir)}</div>
               </div>
               <div>
-                <div className="font-narrow font-bold text-sm sm:text-base text-galv">{weather.rainTrace || "0.0"}mm</div>
+                <div className="font-narrow font-bold text-sm sm:text-base text-galv">{currentWeather.precipitation.toFixed(1)}mm</div>
                 <div className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">Rain</div>
               </div>
             </div>
