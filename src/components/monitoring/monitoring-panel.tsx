@@ -87,16 +87,66 @@ export async function MonitoringPanel() {
                 <div className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">Load</div>
               </div>
             </div>
-            {power.genRunning && (
-              <div className="flex items-center gap-2 text-amber-400">
-                <span className="w-1 h-1 rounded-full bg-amber-400 animate-pulse" />
-                <span className="font-narrow uppercase tracking-wider text-[0.6rem]">Generator running</span>
-              </div>
-            )}
           </div>
         ) : (
           <p className="text-xs text-galv-dim leading-relaxed">
             Set <code className="text-iron text-[0.7rem] bg-steel-3 px-1 rounded">SELECT_LIVE_*</code> env vars to connect.
+          </p>
+        )}
+      </div>
+
+      {/* Generator */}
+      <div className="card-surface p-4 sm:p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <span className={`w-1.5 h-1.5 rounded-full ${power?.genRunning ? "bg-amber-400 animate-pulse" : "bg-galv-dim"}`} />
+            <h3 className="font-narrow uppercase tracking-wider text-xs font-bold text-galv">Generator</h3>
+          </div>
+          <span className={`font-narrow uppercase tracking-wider text-[0.55rem] ${power?.genRunning ? "text-amber-400" : "text-galv-dim"}`}>
+            {power ? (power.genRunning ? "running" : "standby") : "—"}
+          </span>
+        </div>
+        {power ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className={`flex items-center justify-center w-12 h-12 rounded-full ${power.genRunning ? "bg-amber-950/40 border border-amber-700/40" : "bg-steel-3 border border-line"}`}>
+                <svg viewBox="0 0 24 24" className={`w-6 h-6 ${power.genRunning ? "text-amber-400" : "text-galv-dim"}`} fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round">
+                  <rect x="3" y="6" width="18" height="12" rx="2" />
+                  <path d="M7 10v4M11 10v4M15 10v4M19 10v4" />
+                </svg>
+              </div>
+              <div>
+                <div className={`font-narrow font-bold text-xl ${power.genRunning ? "text-amber-400" : "text-galv"}`}>
+                  {power.genRunning ? "Running" : "Standby"}
+                </div>
+                <div className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim mt-0.5">
+                  Generac Guardian 8kVA
+                </div>
+              </div>
+            </div>
+            <div className="h-px bg-line" />
+            <div className="flex items-center justify-between">
+              <span className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">Fuel</span>
+              <span className="font-narrow text-xs text-galv">LPG · 4×45kg + 1 reserve</span>
+            </div>
+            {power.genRunning ? (
+              <div className="bg-amber-950/30 border border-amber-700/30 rounded-lg p-3">
+                <p className="font-narrow uppercase tracking-wider text-[0.6rem] text-amber-400 mb-1">
+                  Auto-started
+                </p>
+                <p className="text-xs text-galv-dim leading-relaxed">
+                  Battery was low — generator is charging the system. Normal on dull winter mornings.
+                </p>
+              </div>
+            ) : (
+              <p className="text-xs text-galv-dim leading-relaxed">
+                Auto-starts when battery runs low. Mostly runs on dull winter mornings.
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-galv-dim leading-relaxed">
+            Connect select.live to see generator status.
           </p>
         )}
       </div>
