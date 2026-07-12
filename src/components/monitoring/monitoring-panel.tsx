@@ -6,7 +6,7 @@ import {
   getLatestWeather,
   getLatestFireDanger,
 } from "@/lib/integrations/weather";
-import { getLatestPower } from "@/lib/integrations/selectlive";
+import { getLatestPower, fetchPowerData } from "@/lib/integrations/selectlive";
 
 const fireDangerConfig: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   NONE: { label: "None", color: "text-galv-dim", bg: "bg-steel-2", dot: "bg-galv-dim" },
@@ -25,7 +25,7 @@ const STALE_THRESHOLD_MIN = 15;
 
 export async function MonitoringPanel() {
   const now = new Date();
-  const [existingWeather, existingFdr, power, starlink] = await Promise.all([
+  const [existingWeather, existingFdr, existingPower, starlink] = await Promise.all([
     prisma.weatherData.findFirst({ orderBy: { recordedAt: "desc" } }),
     prisma.fireDanger.findFirst({ orderBy: { recordedAt: "desc" }, where: { district: "Illawarra/Shoalhaven" } }),
     getLatestPower(),
@@ -38,15 +38,20 @@ export async function MonitoringPanel() {
   const fdrStale =
     !existingFdr ||
     (now.getTime() - existingFdr.recordedAt.getTime()) / 60000 > 60;
+  const powerStale =
+    !existingPower ||
+    (now.getTime() - existingPower.timestamp * 1000) / 60000 > STALE_THRESHOLD_MIN;
 
-  const [freshWeather, freshFdr, warnings] = await Promise.all([
+  const [freshWeather, freshFdr, warnings, freshPower] = await Promise.all([
     weatherStale ? fetchWeatherObservation() : Promise.resolve(null),
     fdrStale ? fetchFireDanger() : Promise.resolve(null),
     fetchWeatherWarnings(),
+    powerStale ? fetchPowerData() : Promise.resolve(null),
   ]);
 
   const weather = freshWeather || (await getLatestWeather());
   const fireDanger = freshFdr || (await getLatestFireDanger());
+  const power = freshPower || existingPower;
   const fdr = fireDanger ? fireDangerConfig[fireDanger.dangerToday] || fireDangerConfig.NONE : null;
 
   return (
