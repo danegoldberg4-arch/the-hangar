@@ -119,6 +119,15 @@ export async function MonitoringPanel() {
                 {power.genRunning ? "Running" : "Standby"}
               </div>
             </div>
+            {power.genRunning && (
+              <>
+                <div className="h-px bg-line" />
+                <div className="flex items-center-baseline gap-1">
+                  <span className="font-narrow font-bold text-2xl text-amber-400">{formatPower(Math.abs(power.gridW))}</span>
+                  <span className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim ml-auto">Output</span>
+                </div>
+              </>
+            )}
           </div>
         ) : (
           <p className="text-xs text-galv-dim leading-relaxed">
