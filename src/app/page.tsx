@@ -8,6 +8,7 @@ import { MonitoringPanel } from "@/components/monitoring/monitoring-panel";
 import { RestockSummary } from "@/components/restock/restock-summary";
 import { RainWidget } from "@/components/weather/rain-widget";
 import { ForecastWidget } from "@/components/weather/forecast-widget";
+import { PowerHistoryChart } from "@/components/weather/power-history-chart";
 import { VisitSummary } from "@/components/visits/visit-summary";
 
 export const maxDuration = 30;
@@ -80,6 +81,12 @@ export default async function DashboardPage() {
         <Suspense fallback={<div className="card-surface p-4 sm:p-5 text-sm text-galv-dim">Loading monitoring data...</div>}>
           <MonitoringPanel />
         </Suspense>
+
+        <div className="mt-3">
+          <Suspense fallback={<div className="card-surface p-4 sm:p-5 text-sm text-galv-dim">Loading power history...</div>}>
+            <PowerHistoryChart />
+          </Suspense>
+        </div>
       </div>
 
       {/* Maintenance + Restock + Visits grid */}
