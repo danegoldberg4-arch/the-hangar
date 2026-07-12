@@ -115,34 +115,10 @@ export async function MonitoringPanel() {
                   <path d="M7 10v4M11 10v4M15 10v4M19 10v4" />
                 </svg>
               </div>
-              <div>
-                <div className={`font-narrow font-bold text-xl ${power.genRunning ? "text-amber-400" : "text-galv"}`}>
-                  {power.genRunning ? "Running" : "Standby"}
-                </div>
-                <div className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim mt-0.5">
-                  Generac Guardian 8kVA
-                </div>
+              <div className={`font-narrow font-bold text-xl ${power.genRunning ? "text-amber-400" : "text-galv"}`}>
+                {power.genRunning ? "Running" : "Standby"}
               </div>
             </div>
-            <div className="h-px bg-line" />
-            <div className="flex items-center justify-between">
-              <span className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">Fuel</span>
-              <span className="font-narrow text-xs text-galv">LPG · 4×45kg + 1 reserve</span>
-            </div>
-            {power.genRunning ? (
-              <div className="bg-amber-950/30 border border-amber-700/30 rounded-lg p-3">
-                <p className="font-narrow uppercase tracking-wider text-[0.6rem] text-amber-400 mb-1">
-                  Auto-started
-                </p>
-                <p className="text-xs text-galv-dim leading-relaxed">
-                  Battery was low — generator is charging the system. Normal on dull winter mornings.
-                </p>
-              </div>
-            ) : (
-              <p className="text-xs text-galv-dim leading-relaxed">
-                Auto-starts when battery runs low. Mostly runs on dull winter mornings.
-              </p>
-            )}
           </div>
         ) : (
           <p className="text-xs text-galv-dim leading-relaxed">
