@@ -13,7 +13,7 @@ export async function RainWidget() {
           <h3 className="font-narrow uppercase tracking-wider text-xs font-bold text-galv">Rainfall</h3>
         </div>
         <span className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">
-          Nowra · ~25km SE
+          Kangaroo Valley
         </span>
       </div>
 
@@ -45,7 +45,7 @@ export async function RainWidget() {
         <div className="flex items-end gap-[2px] h-10 overflow-hidden">
           {rain.dailyHistory.map((d) => {
             const height = Math.max((d.total / maxDaily) * 100, 2);
-            const isToday = d.date === new Date().toISOString().slice(0, 10);
+            const isToday = d.date === new Date().toLocaleDateString("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" });
             return (
               <div
                 key={d.date}

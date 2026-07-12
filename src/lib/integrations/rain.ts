@@ -1,5 +1,3 @@
-import { prisma } from "@/lib/prisma";
-
 export interface RainSummary {
   today: number;
   week: number;
@@ -7,56 +5,40 @@ export interface RainSummary {
   dailyHistory: { date: string; total: number }[];
 }
 
+const LAT = -34.73;
+const LON = 150.48;
+
 export async function getRainSummary(): Promise<RainSummary> {
-  const now = new Date();
-  const thirtyDaysAgo = new Date(now);
-  thirtyDaysAgo.setDate(now.getDate() - 31);
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&daily=precipitation_sum&timezone=Australia/Sydney&forecast_days=1&past_days=30`;
 
-  const readings = await prisma.weatherData.findMany({
-    where: {
-      recordedAt: { gte: thirtyDaysAgo },
-    },
-    select: {
-      rainTrace: true,
-      recordedAt: true,
-    },
-    orderBy: { recordedAt: "asc" },
-  });
+    const res = await fetch(url, { next: { revalidate: 0 } });
 
-  const dailyTotals = new Map<string, number>();
-
-  for (const r of readings) {
-    const dateKey = r.recordedAt.toISOString().slice(0, 10);
-    const rainVal = parseFloat(r.rainTrace || "0") || 0;
-    const current = dailyTotals.get(dateKey) ?? 0;
-    dailyTotals.set(dateKey, Math.max(current, rainVal));
-  }
-
-  const todayKey = now.toISOString().slice(0, 10);
-  const today = dailyTotals.get(todayKey) ?? 0;
-
-  let week = 0;
-  const weekAgo = new Date(now);
-  weekAgo.setDate(now.getDate() - 7);
-  for (const [dateKey, total] of dailyTotals) {
-    if (new Date(dateKey) >= weekAgo) {
-      week += total;
+    if (!res.ok) {
+      return { today: 0, week: 0, month: 0, dailyHistory: [] };
     }
+
+    const data = await res.json();
+
+    const times: string[] = data.daily.time;
+    const precip: number[] = data.daily.precipitation_sum;
+
+    const dailyHistory = times.map((date, i) => ({
+      date,
+      total: precip[i] ?? 0,
+    }));
+
+    const today = dailyHistory[dailyHistory.length - 1]?.total ?? 0;
+
+    const last7 = dailyHistory.slice(-7);
+    const week = last7.reduce((sum, d) => sum + d.total, 0);
+
+    const last30 = dailyHistory.slice(-30);
+    const month = last30.reduce((sum, d) => sum + d.total, 0);
+
+    return { today, week, month, dailyHistory };
+  } catch (err) {
+    console.error("[rain] fetch error:", err);
+    return { today: 0, week: 0, month: 0, dailyHistory: [] };
   }
-
-  let month = 0;
-  const monthAgo = new Date(now);
-  monthAgo.setDate(now.getDate() - 30);
-  for (const [dateKey, total] of dailyTotals) {
-    if (new Date(dateKey) >= monthAgo) {
-      month += total;
-    }
-  }
-
-  const dailyHistory = Array.from(dailyTotals.entries())
-    .map(([date, total]) => ({ date, total }))
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(-30);
-
-  return { today, week, month, dailyHistory };
 }
