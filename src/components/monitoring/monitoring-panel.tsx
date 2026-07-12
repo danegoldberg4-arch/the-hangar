@@ -183,7 +183,7 @@ export async function MonitoringPanel() {
       </div>
 
       {/* Fire Danger */}
-      <div className={`rounded-xl border border-line p-5 ${fdr ? fdr.bg : "bg-steel-2"}`}>
+      <div className="card-surface p-4 sm:p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <span className={`w-1.5 h-1.5 rounded-full ${fdr?.dot || "bg-galv-dim"}`} />
