@@ -48,7 +48,7 @@ export function PowerChart({ data }: { data: Reading[] }) {
           </span>
           <span className="flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-green-400" />
-            <span className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">Battery</span>
+            <span className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">Battery %</span>
           </span>
           <span className="flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-sky-400" />
@@ -58,7 +58,7 @@ export function PowerChart({ data }: { data: Reading[] }) {
       </div>
 
       <ResponsiveContainer width="100%" height={180}>
-        <AreaChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+        <AreaChart data={data} margin={{ top: 5, right: -10, left: -20, bottom: 0 }}>
           <defs>
             <linearGradient id="solarGrad" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.3} />
@@ -79,10 +79,22 @@ export function PowerChart({ data }: { data: Reading[] }) {
             minTickGap={40}
           />
           <YAxis
+            yAxisId="watts"
             tick={{ fill: "#646b75", fontSize: 10, fontFamily: "Archivo Narrow" }}
             tickLine={false}
             axisLine={false}
-            width={40}
+            width={45}
+            tickFormatter={(v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${v}`)}
+          />
+          <YAxis
+            yAxisId="battery"
+            orientation="right"
+            domain={[0, 100]}
+            tick={{ fill: "#646b75", fontSize: 10, fontFamily: "Archivo Narrow" }}
+            tickLine={false}
+            axisLine={false}
+            width={35}
+            tickFormatter={(v: number) => `${v}%`}
           />
           <Tooltip
             contentStyle={{
@@ -102,6 +114,7 @@ export function PowerChart({ data }: { data: Reading[] }) {
             stroke="#f59e0b"
             strokeWidth={1.5}
             fill="url(#solarGrad)"
+            yAxisId="watts"
           />
           <Area
             type="monotone"
@@ -110,15 +123,16 @@ export function PowerChart({ data }: { data: Reading[] }) {
             stroke="#38bdf8"
             strokeWidth={1.5}
             fill="url(#loadGrad)"
+            yAxisId="watts"
           />
           <Line
             type="monotone"
             dataKey="batterySoc"
             name="Battery %"
             stroke="#4ade80"
-            strokeWidth={1.5}
+            strokeWidth={2}
             dot={false}
-            yAxisId={0}
+            yAxisId="battery"
           />
         </AreaChart>
       </ResponsiveContainer>
