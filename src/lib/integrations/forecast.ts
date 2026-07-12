@@ -18,6 +18,8 @@ export interface CurrentWeather {
 export interface WeatherForecast {
   current: CurrentWeather;
   daily: ForecastDay[];
+  sunrise: string;
+  sunset: string;
 }
 
 const LAT = -34.73;
@@ -53,7 +55,7 @@ export function getWeatherLabel(code: number): string {
 
 export async function fetchForecast(): Promise<WeatherForecast | null> {
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,precipitation&timezone=Australia/Sydney&forecast_days=5`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,sunrise,sunset&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,precipitation&timezone=Australia/Sydney&forecast_days=5`;
 
     const res = await fetch(url, { next: { revalidate: 0 } });
 
@@ -78,7 +80,7 @@ export async function fetchForecast(): Promise<WeatherForecast | null> {
       precipitation: data.current.precipitation,
     };
 
-    return { current, daily };
+    return { current, daily, sunrise: data.daily.sunrise[0], sunset: data.daily.sunset[0] };
   } catch (err) {
     console.error("[forecast] fetch error:", err);
     return null;
