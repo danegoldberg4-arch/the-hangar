@@ -27,6 +27,32 @@ function formatPower(w: number): string {
   return `${Math.round(w)}W`;
 }
 
+const BATTERY_CAPACITY_KWH = 26.1;
+const GEN_TRIGGER_SOC = 30;
+
+function estimateGeneratorETA(soc: number, solarW: number, loadW: number): string {
+  const netDrainW = loadW - solarW;
+  if (netDrainW <= 0) {
+    return "Charging — won't start";
+  }
+  const remainingPct = soc - GEN_TRIGGER_SOC;
+  if (remainingPct <= 0) {
+    return "Battery at trigger level";
+  }
+  const remainingKwh = (remainingPct / 100) * BATTERY_CAPACITY_KWH;
+  const drainKw = netDrainW / 1000;
+  const hours = remainingKwh / drainKw;
+  if (hours < 1) {
+    return `~${Math.round(hours * 60)} min`;
+  }
+  if (hours < 24) {
+    const h = Math.floor(hours);
+    const m = Math.round((hours - h) * 60);
+    return m > 0 ? `~${h}h ${m}m` : `~${h}h`;
+  }
+  return `~${Math.floor(hours / 24)}d ${Math.floor(hours % 24)}h`;
+}
+
 function windDirToText(deg: number): string {
   const dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
   return dirs[Math.round(deg / 22.5) % 16];
@@ -146,6 +172,22 @@ export async function MonitoringPanel() {
                 <div className="flex items-center-baseline gap-1">
                   <span className="font-narrow font-bold text-2xl text-amber-400">{formatPower(Math.abs(power.gridW))}</span>
                   <span className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim ml-auto">Output</span>
+                </div>
+              </>
+            )}
+            {!generatorRunning && power.freshness === "live" && (
+              <>
+                <div className="h-px bg-line" />
+                <div>
+                  <div className="font-narrow text-[0.55rem] text-galv-dim uppercase tracking-wider mb-1">
+                    Est. until auto-start
+                  </div>
+                  <div className="font-narrow font-bold text-base text-iron-lt">
+                    {estimateGeneratorETA(power.batterySoc, power.solarW, power.loadW)}
+                  </div>
+                  <div className="font-narrow text-[0.55rem] text-galv-dim mt-1">
+                    At current usage · triggers at {GEN_TRIGGER_SOC}%
+                  </div>
                 </div>
               </>
             )}
