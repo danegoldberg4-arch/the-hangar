@@ -46,7 +46,21 @@ const GEN_TRIGGER = 30;
 
 function calcETA(soc: number, solarW: number, loadW: number): string {
   const netDrain = loadW - solarW;
-  if (netDrain <= 0) return "Charging";
+  if (netDrain <= 0) {
+    // Solar exceeds load — battery is charging
+    const surplus = -netDrain; // watts going into battery
+    const neededPct = 100 - soc;
+    if (neededPct <= 0) return "Full";
+    const neededKwh = (neededPct / 100) * BATTERY_KWH;
+    const hours = neededKwh / (surplus / 1000);
+    if (hours < 1) return `Full in ~${Math.round(hours * 60)}m`;
+    if (hours < 24) {
+      const h = Math.floor(hours);
+      const m = Math.round((hours - h) * 60);
+      return m > 0 ? `Full in ~${h}h ${m}m` : `Full in ~${h}h`;
+    }
+    return `Full in ~${Math.floor(hours / 24)}d`;
+  }
   const remainingPct = soc - GEN_TRIGGER;
   if (remainingPct <= 0) return "At trigger";
   const remainingKwh = (remainingPct / 100) * BATTERY_KWH;
@@ -232,13 +246,21 @@ export function LiveMonitoring({ initialData }: { initialData: MonitoringData | 
                 <div className="h-px bg-line" />
                 <div>
                   <div className="font-narrow text-[0.55rem] text-galv-dim uppercase tracking-wider mb-1">
-                    Est. until auto-start
+                    {(() => {
+                      const netDrain = power.loadW - power.solarW;
+                      if (netDrain <= 0) return "Est. until full charge";
+                      return "Est. until auto-start";
+                    })()}
                   </div>
                   <div className="font-narrow font-bold text-base text-iron-lt">
                     {eta}
                   </div>
                   <div className="font-narrow text-[0.55rem] text-galv-dim mt-1">
-                    At current usage · triggers at {GEN_TRIGGER}%
+                    {(() => {
+                      const netDrain = power.loadW - power.solarW;
+                      if (netDrain <= 0) return `Surplus ${formatPower(-netDrain)} charging battery`;
+                      return `At current usage · triggers at ${GEN_TRIGGER}%`;
+                    })()}
                   </div>
                 </div>
               </>
