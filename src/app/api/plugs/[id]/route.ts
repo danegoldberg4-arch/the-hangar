@@ -1,7 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { enforceAdmin, requireAdmin, requireUser } from "@/lib/api-auth";
-import { parseAutomation, serializeAutomation, type PlugAutomation } from "@/lib/plugs";
+import {
+  apiError,
+  internalError,
+  readJsonObject,
+  validationError,
+} from "@/lib/api-response";
+import { validatePlugInventoryUpdate } from "@/lib/plug-inventory-validation";
 
 export async function PATCH(
   request: NextRequest,
@@ -11,66 +17,49 @@ export async function PATCH(
   if (!access.ok) return access.response;
 
   const { id } = await ctx.params;
-  const body = await request.json();
-  const { action, automation, name, room } = body;
+  const body = await readJsonObject(request);
+  if (!body.ok) return body.response;
 
-  const plug = await prisma.smartPlug.findUnique({ where: { id } });
-  if (!plug) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
+  try {
+    const plug = await prisma.smartPlug.findUnique({ where: { id } });
+    if (!plug) {
+      return apiError(404, "NOT_FOUND", "Inventory device not found.");
+    }
 
-  if (action === "toggle") {
-    const newState = !plug.isOn;
-    await prisma.smartPlug.update({
-      where: { id },
-      data: { isOn: newState, lastSeen: new Date() },
-    });
-    return NextResponse.json({ ...plug, isOn: newState });
-  }
+    if (
+      Object.prototype.hasOwnProperty.call(body.value, "action") ||
+      Object.prototype.hasOwnProperty.call(body.value, "automation")
+    ) {
+      return apiError(
+        501,
+        "CONTROL_UNAVAILABLE",
+        "Physical device control is unavailable until the edge agent is deployed."
+      );
+    }
 
-  if (action === "turn_on") {
-    await prisma.smartPlug.update({
-      where: { id },
-      data: { isOn: true, lastSeen: new Date() },
-    });
-    return NextResponse.json({ ...plug, isOn: true });
-  }
-
-  if (action === "turn_off") {
-    await prisma.smartPlug.update({
-      where: { id },
-      data: { isOn: false, lastSeen: new Date() },
-    });
-    return NextResponse.json({ ...plug, isOn: false });
-  }
-
-  if (automation !== undefined) {
     const forbidden = enforceAdmin(access.user);
     if (forbidden) return forbidden;
 
-    const auto: PlugAutomation = { ...parseAutomation(plug.automation), ...automation };
-    const updated = await prisma.smartPlug.update({
-      where: { id },
-      data: { automation: serializeAutomation(auto) },
-    });
-    return NextResponse.json(updated);
-  }
-
-  if (name !== undefined || room !== undefined) {
-    const forbidden = enforceAdmin(access.user);
-    if (forbidden) return forbidden;
+    const parsed = validatePlugInventoryUpdate(body.value);
+    if (!parsed.ok) return validationError(parsed.errors);
 
     const updated = await prisma.smartPlug.update({
       where: { id },
-      data: {
-        ...(name !== undefined && { name }),
-        ...(room !== undefined && { room }),
+      data: parsed.value,
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        deviceId: true,
+        ip: true,
+        room: true,
+        createdAt: true,
       },
     });
     return NextResponse.json(updated);
+  } catch (error) {
+    return internalError("update inventory device", error);
   }
-
-  return NextResponse.json({ error: "Unknown action" }, { status: 400 });
 }
 
 export async function DELETE(
@@ -81,6 +70,13 @@ export async function DELETE(
   if (!access.ok) return access.response;
 
   const { id } = await ctx.params;
-  await prisma.smartPlug.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
+  try {
+    const deleted = await prisma.smartPlug.deleteMany({ where: { id } });
+    if (deleted.count === 0) {
+      return apiError(404, "NOT_FOUND", "Inventory device not found.");
+    }
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return internalError("delete inventory device", error);
+  }
 }

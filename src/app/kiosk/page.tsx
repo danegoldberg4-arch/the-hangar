@@ -14,17 +14,22 @@ import {
   Bar,
   Cell,
 } from "recharts";
+import {
+  FRESHNESS_THRESHOLDS,
+  advanceObservationMeta,
+  freshnessLabel,
+  type ObservationMeta,
+} from "@/lib/integrations/freshness";
 
 interface KioskData {
-  power: {
+  power: ObservationMeta & {
     batterySoc: number;
     solarW: number;
     loadW: number;
     genRunning: boolean;
     gridW: number;
-    stale: boolean;
   } | null;
-  weather: {
+  weather: ObservationMeta & {
     temp: number;
     humidity: number;
     windSpeed: number;
@@ -32,25 +37,27 @@ interface KioskData {
     precipitation: number;
     weatherCode: number;
   } | null;
-  forecast: {
+  forecast: ObservationMeta & {
     daily: { date: string; maxTemp: number; minTemp: number; precipitation: number; weatherCode: number }[];
   } | null;
-  fireDanger: {
+  fireDanger: ObservationMeta & {
+    reportDate: string;
     dangerToday: string;
     dangerTomorrow: string;
     fireBanToday: boolean;
   } | null;
-  rain: {
+  rain: ObservationMeta & {
     today: number;
     week: number;
     month: number;
     history: { date: string; total: number }[];
   } | null;
-  sunTimes: { sunrise: string; sunset: string } | null;
+  sunTimes: ObservationMeta & { sunrise: string; sunset: string } | null;
   powerHistory: { time: string; batterySoc: number; solarW: number; loadW: number }[];
   alerts: { name: string; daysOverdue: number }[];
   restockCount: number;
   visits: { visitorName: string; startDate: string; endDate: string }[];
+  generatedAt: string;
 }
 
 const fireDangerConfig: Record<string, { label: string; color: string }> = {
@@ -82,19 +89,40 @@ function windDirText(deg: number): string {
   return dirs[Math.round(deg / 22.5) % 16];
 }
 
+function refreshMeta<T extends ObservationMeta>(
+  value: T | null,
+  liveForMs: number,
+  elapsedMs: number,
+  forceStale: boolean
+): T | null {
+  if (!value) return null;
+  const meta = advanceObservationMeta(value, liveForMs, elapsedMs, forceStale);
+  return {
+    ...value,
+    ...meta,
+  };
+}
+
 // Kiosk metadata — set via layout
 
 export default function KioskPage() {
-  const [data, setData] = useState<KioskData | null>(null);
+  const [snapshotState, setSnapshot] = useState<{
+    data: KioskData;
+    receivedAtMs: number;
+  } | null>(null);
   const [time, setTime] = useState(new Date());
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     async function load() {
       try {
         const res = await fetch("/api/kiosk");
-        if (res.ok) setData(await res.json());
+        if (!res.ok) throw new Error(`Kiosk API returned ${res.status}`);
+        setSnapshot({ data: await res.json(), receivedAtMs: Date.now() });
+        setLoadError(false);
       } catch (e) {
         console.error("kiosk load error", e);
+        setLoadError(true);
       }
     }
     load();
@@ -106,24 +134,82 @@ export default function KioskPage() {
     };
   }, []);
 
-  if (!data) {
+  if (!snapshotState) {
     return (
       <div className="min-h-screen bg-steel flex items-center justify-center">
         <div className="text-center">
           <svg viewBox="0 0 24 24" className="w-12 h-12 stroke-iron fill-none mx-auto mb-4 animate-pulse" strokeWidth={1.5}>
             <path d="M2 20h20M4 20V9l8-5 8 5v11M9 20v-6h6v6" />
           </svg>
-          <p className="font-narrow uppercase tracking-wider text-sm text-galv-dim">Loading...</p>
+          <p className="font-narrow uppercase tracking-wider text-sm text-galv-dim">
+            {loadError ? "Monitoring unavailable" : "Loading..."}
+          </p>
         </div>
       </div>
     );
   }
 
+  const snapshot = snapshotState.data;
+  const elapsedMs = Math.max(0, time.getTime() - snapshotState.receivedAtMs);
+  const generatedAtMs = Date.parse(snapshot.generatedAt);
+  const displayTime = Number.isFinite(generatedAtMs)
+    ? new Date(generatedAtMs + elapsedMs)
+    : time;
+  const todayKey = displayTime.toLocaleDateString("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: "Australia/Sydney",
+  });
+  const fireDanger = refreshMeta(
+    snapshot.fireDanger,
+    Number.MAX_SAFE_INTEGER,
+    elapsedMs,
+    loadError
+  );
+  const data: KioskData = {
+    ...snapshot,
+    power: refreshMeta(
+      snapshot.power,
+      FRESHNESS_THRESHOLDS.power,
+      elapsedMs,
+      loadError
+    ),
+    weather: refreshMeta(
+      snapshot.weather,
+      FRESHNESS_THRESHOLDS.weather,
+      elapsedMs,
+      loadError
+    ),
+    forecast: refreshMeta(
+      snapshot.forecast,
+      FRESHNESS_THRESHOLDS.forecast,
+      elapsedMs,
+      loadError
+    ),
+    fireDanger:
+      fireDanger &&
+      fireDanger.freshness !== "unavailable" &&
+      fireDanger.reportDate !== todayKey
+        ? { ...fireDanger, freshness: "stale" }
+        : fireDanger,
+    rain: refreshMeta(
+      snapshot.rain,
+      FRESHNESS_THRESHOLDS.rain,
+      elapsedMs,
+      loadError
+    ),
+    sunTimes: refreshMeta(
+      snapshot.sunTimes,
+      FRESHNESS_THRESHOLDS.forecast,
+      elapsedMs,
+      loadError
+    ),
+  };
   const fdr = data.fireDanger ? fireDangerConfig[data.fireDanger.dangerToday] : null;
-  const todayKey = new Date().toLocaleDateString("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" });
 
   return (
-    <div className="min-h-screen bg-steel text-paper p-6 overflow-hidden">
+    <div className="min-h-screen bg-steel text-paper p-3 sm:p-6 overflow-x-hidden">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -137,15 +223,34 @@ export default function KioskPage() {
         </div>
         <div className="text-right">
           <div className="font-narrow font-bold text-3xl text-paper">
-            {time.toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit" })}
+            {displayTime.toLocaleTimeString("en-AU", {
+              hour: "2-digit",
+              minute: "2-digit",
+              timeZone: "Australia/Sydney",
+            })}
           </div>
           <div className="font-narrow uppercase tracking-wider text-xs text-galv-dim">
-            {time.toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long" })}
+            {displayTime.toLocaleDateString("en-AU", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+              timeZone: "Australia/Sydney",
+            })}
           </div>
         </div>
       </div>
 
       {/* Alerts banner */}
+      {loadError && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="mb-4 border border-amber-900/30 bg-amber-950/10 rounded-lg p-3 font-narrow uppercase tracking-wider text-xs text-amber-400"
+        >
+          Refresh failed. Showing the last received dashboard snapshot.
+        </div>
+      )}
+
       {data.alerts.length > 0 && (
         <div className="mb-4 border border-iron/30 bg-iron/5 rounded-xl p-4 flex items-center gap-4 fade-in">
           <span className="w-2 h-2 rounded-full bg-iron glow-dot text-iron" />
@@ -158,16 +263,16 @@ export default function KioskPage() {
       )}
 
       {/* Main grid */}
-      <div className="grid grid-cols-4 gap-4 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
         {/* Power — big card */}
-        <div className="card-surface p-5 fade-in col-span-2 row-span-2">
+        <div className="card-surface p-5 fade-in sm:col-span-2 xl:row-span-2">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full bg-amber-400 ${data.power && !data.power.stale ? "glow-dot text-amber-400" : ""}`} />
+              <span className={`w-2 h-2 rounded-full ${data.power?.freshness === "live" ? "bg-amber-400 glow-dot text-amber-400" : "bg-galv-dim"}`} />
               <h2 className="font-narrow uppercase tracking-wider text-sm font-bold text-galv">Power</h2>
             </div>
-            <span className={`font-narrow uppercase tracking-wider text-xs ${data.power?.stale ? "text-galv-dim" : "text-green-400"}`}>
-              {data.power ? (data.power.stale ? "stale" : "live") : "—"}
+            <span className={`font-narrow uppercase tracking-wider text-xs ${data.power?.freshness === "live" ? "text-green-400" : "text-galv-dim"}`}>
+              {data.power ? freshnessLabel(data.power) : "unavailable"}
             </span>
           </div>
           {data.power ? (
@@ -188,8 +293,10 @@ export default function KioskPage() {
                   <div className="font-narrow uppercase tracking-wider text-xs text-galv-dim">Load</div>
                 </div>
                 <div>
-                  <div className={`font-narrow font-bold text-2xl ${data.power.genRunning ? "text-amber-400" : "text-galv-dim"}`}>
-                    {data.power.genRunning ? "Running" : "Standby"}
+                  <div className={`font-narrow font-bold text-2xl ${data.power.freshness === "live" && data.power.genRunning ? "text-amber-400" : "text-galv-dim"}`}>
+                    {data.power.freshness === "live"
+                      ? data.power.genRunning ? "Running" : "Standby"
+                      : data.power.genRunning ? "Last report: on" : "Last report: off"}
                   </div>
                   <div className="font-narrow uppercase tracking-wider text-xs text-galv-dim">Generator</div>
                 </div>
@@ -216,15 +323,20 @@ export default function KioskPage() {
               )}
             </>
           ) : (
-            <p className="text-galv-dim">Connect select.live</p>
+            <p className="text-galv-dim">Power telemetry unavailable</p>
           )}
         </div>
 
         {/* Weather */}
         <div className="card-surface p-5 fade-in">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="w-2 h-2 rounded-full bg-sky-400 glow-dot text-sky-400" />
-            <h2 className="font-narrow uppercase tracking-wider text-sm font-bold text-galv">Weather</h2>
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <span className={`w-2 h-2 rounded-full ${data.weather?.freshness === "live" ? "bg-sky-400 glow-dot text-sky-400" : "bg-galv-dim"}`} />
+              <h2 className="font-narrow uppercase tracking-wider text-sm font-bold text-galv">Weather</h2>
+            </div>
+            <span className={`font-narrow uppercase tracking-wider text-[0.6rem] ${data.weather?.freshness === "live" ? "text-green-400" : "text-galv-dim"}`}>
+              {data.weather ? freshnessLabel(data.weather) : "unavailable"}
+            </span>
           </div>
           {data.weather ? (
             <div>
@@ -249,41 +361,55 @@ export default function KioskPage() {
                 </div>
               </div>
             </div>
-          ) : <p className="text-galv-dim text-sm">Loading...</p>}
+          ) : <p className="text-galv-dim text-sm">Weather unavailable</p>}
         </div>
 
         {/* Fire Danger */}
         <div className="card-surface p-5 fade-in">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="w-2 h-2 rounded-full bg-red-500 glow-dot text-red-500" />
-            <h2 className="font-narrow uppercase tracking-wider text-sm font-bold text-galv">Fire Danger</h2>
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <span className={`w-2 h-2 rounded-full ${data.fireDanger?.freshness === "live" ? "bg-red-500 glow-dot text-red-500" : "bg-galv-dim"}`} />
+              <h2 className="font-narrow uppercase tracking-wider text-sm font-bold text-galv">Fire Danger</h2>
+            </div>
+            <span className={`font-narrow uppercase tracking-wider text-[0.6rem] ${data.fireDanger?.freshness === "live" ? "text-green-400" : "text-galv-dim"}`}>
+              {data.fireDanger ? freshnessLabel(data.fireDanger) : "unavailable"}
+            </span>
           </div>
           {fdr && data.fireDanger ? (
             <div>
               <div className={`font-narrow font-bold text-3xl ${fdr.color} mb-1`}>
                 {fdr.label}
               </div>
-              <div className="font-narrow uppercase tracking-wider text-xs text-galv-dim mb-3">Today</div>
+              <div className="font-narrow uppercase tracking-wider text-xs text-galv-dim mb-3">
+                {data.fireDanger.freshness === "live" ? "Today" : "Last report"}
+              </div>
               <div className="flex justify-between text-sm">
-                <span className="text-galv-dim">Tomorrow</span>
+                <span className="text-galv-dim">
+                  {data.fireDanger.freshness === "live" ? "Tomorrow" : "Next day in report"}
+                </span>
                 <span className={`font-bold ${fireDangerConfig[data.fireDanger.dangerTomorrow]?.color || "text-galv"}`}>
                   {fireDangerConfig[data.fireDanger.dangerTomorrow]?.label || data.fireDanger.dangerTomorrow}
                 </span>
               </div>
               {data.fireDanger.fireBanToday && (
                 <div className="mt-2 text-red-400 font-narrow uppercase tracking-wider text-xs">
-                  Total Fire Ban
+                  {data.fireDanger.freshness === "live" ? "Total Fire Ban" : "Last report: Total Fire Ban"}
                 </div>
               )}
             </div>
-          ) : <p className="text-galv-dim text-sm">Loading...</p>}
+          ) : <p className="text-galv-dim text-sm">Fire danger unavailable</p>}
         </div>
 
         {/* Sunrise/Sunset */}
         <div className="card-surface p-5 fade-in">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="w-2 h-2 rounded-full bg-amber-400 glow-dot text-amber-400" />
-            <h2 className="font-narrow uppercase tracking-wider text-sm font-bold text-galv">Sun</h2>
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <span className={`w-2 h-2 rounded-full ${data.sunTimes?.freshness === "live" ? "bg-amber-400 glow-dot text-amber-400" : "bg-galv-dim"}`} />
+              <h2 className="font-narrow uppercase tracking-wider text-sm font-bold text-galv">Sun</h2>
+            </div>
+            <span className={`font-narrow uppercase tracking-wider text-[0.6rem] ${data.sunTimes?.freshness === "live" ? "text-green-400" : "text-galv-dim"}`}>
+              {data.sunTimes ? freshnessLabel(data.sunTimes) : "unavailable"}
+            </span>
           </div>
           {data.sunTimes ? (
             <div className="space-y-3">
@@ -307,23 +433,28 @@ export default function KioskPage() {
                 </div>
               </div>
             </div>
-          ) : <p className="text-galv-dim text-sm">Loading...</p>}
+          ) : <p className="text-galv-dim text-sm">Sun times unavailable</p>}
         </div>
 
         {/* Forecast */}
         <div className="card-surface p-5 fade-in">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="w-2 h-2 rounded-full bg-sky-400" />
-            <h2 className="font-narrow uppercase tracking-wider text-sm font-bold text-galv">Forecast</h2>
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <span className={`w-2 h-2 rounded-full ${data.forecast?.freshness === "live" ? "bg-sky-400" : "bg-galv-dim"}`} />
+              <h2 className="font-narrow uppercase tracking-wider text-sm font-bold text-galv">Forecast</h2>
+            </div>
+            <span className={`font-narrow uppercase tracking-wider text-[0.6rem] ${data.forecast?.freshness === "live" ? "text-green-400" : "text-galv-dim"}`}>
+              {data.forecast ? freshnessLabel(data.forecast) : "unavailable"}
+            </span>
           </div>
           {data.forecast ? (
             <div className="grid grid-cols-5 gap-2">
               {data.forecast.daily.map((day, i) => {
-                const d = new Date(day.date);
+                const dayIndex = new Date(`${day.date}T00:00:00Z`).getUTCDay();
                 return (
                   <div key={day.date} className="text-center">
                     <div className="font-narrow uppercase tracking-wider text-[0.6rem] text-galv-dim">
-                      {i === 0 ? "Today" : dayNames[d.getDay()]}
+                      {i === 0 ? "Today" : dayNames[dayIndex]}
                     </div>
                     <div className="font-narrow font-bold text-lg text-paper mt-1">{day.maxTemp.toFixed(0)}°</div>
                     <div className="font-narrow text-xs text-galv-dim">{day.minTemp.toFixed(0)}°</div>
@@ -332,14 +463,19 @@ export default function KioskPage() {
                 );
               })}
             </div>
-          ) : <p className="text-galv-dim text-sm">Loading...</p>}
+          ) : <p className="text-galv-dim text-sm">Forecast unavailable</p>}
         </div>
 
         {/* Rainfall */}
         <div className="card-surface p-5 fade-in">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="w-2 h-2 rounded-full bg-sky-400" />
-            <h2 className="font-narrow uppercase tracking-wider text-sm font-bold text-galv">Rainfall</h2>
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <span className={`w-2 h-2 rounded-full ${data.rain?.freshness === "live" ? "bg-sky-400" : "bg-galv-dim"}`} />
+              <h2 className="font-narrow uppercase tracking-wider text-sm font-bold text-galv">Rainfall</h2>
+            </div>
+            <span className={`font-narrow uppercase tracking-wider text-[0.6rem] ${data.rain?.freshness === "live" ? "text-green-400" : "text-galv-dim"}`}>
+              {data.rain ? freshnessLabel(data.rain) : "unavailable"}
+            </span>
           </div>
           {data.rain ? (
             <div>
@@ -359,7 +495,7 @@ export default function KioskPage() {
                 </ResponsiveContainer>
               )}
             </div>
-          ) : <p className="text-galv-dim text-sm">Loading...</p>}
+          ) : <p className="text-galv-dim text-sm">Rainfall unavailable</p>}
         </div>
 
         {/* Visits */}
@@ -374,7 +510,11 @@ export default function KioskPage() {
                 <div key={i} className="text-sm">
                   <span className="text-paper font-narrow">{v.visitorName}</span>
                   <span className="text-galv-dim text-xs ml-2">
-                    {new Date(v.startDate).toLocaleDateString("en-AU", { day: "numeric", month: "short" })}
+                    {new Date(v.startDate).toLocaleDateString("en-AU", {
+                      day: "numeric",
+                      month: "short",
+                      timeZone: "Australia/Sydney",
+                    })}
                   </span>
                 </div>
               ))}

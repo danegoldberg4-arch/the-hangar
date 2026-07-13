@@ -1,6 +1,17 @@
 import { prisma } from "@/lib/prisma";
+import {
+  FRESHNESS_THRESHOLDS,
+  observationMeta,
+  parseSourceTimestamp,
+  storedObservationMeta,
+  type ObservationMeta,
+} from "@/lib/integrations/freshness";
+import { fetchWithTimeout } from "@/lib/integrations/http";
 
 const SELECT_LIVE_URL = "https://select.live";
+const POWER_SOURCE = "select.live";
+const SELECT_LIVE_DEADLINE_MS = 24_000;
+const SELECT_LIVE_REQUEST_TIMEOUT_MS = 5_500;
 
 interface SelectLiveData {
   battery_soc: number;
@@ -21,15 +32,14 @@ interface SelectLiveData {
 interface SelectLiveResponse {
   device: { name: string };
   item_count: number;
-  now: number;
   items: SelectLiveData;
   comment: string;
 }
 
 let cachedCookies: string | null = null;
-let cookieExpiry: number = 0;
+let cookieExpiry = 0;
 
-export interface PowerStatus {
+export interface PowerStatus extends ObservationMeta {
   batterySoc: number;
   batteryW: number;
   solarW: number;
@@ -42,64 +52,57 @@ export interface PowerStatus {
   loadKwhToday: number;
   batteryInKwhToday: number;
   batteryOutKwhToday: number;
-  timestamp: number;
-  stale: boolean;
 }
 
-async function login(): Promise<string | null> {
+function requestTimeout(deadline: number): number {
+  const remaining = deadline - Date.now();
+  if (remaining < 500) throw new Error("select.live request deadline exhausted");
+  return Math.min(SELECT_LIVE_REQUEST_TIMEOUT_MS, remaining);
+}
+
+async function login(deadline: number): Promise<string | null> {
   const email = process.env.SELECT_LIVE_EMAIL;
   const password = process.env.SELECT_LIVE_PWD;
 
-  if (!email || !password) {
-    console.error("[select.live] Missing env vars. EMAIL:", !!email, "PWD:", !!password);
-    return null;
-  }
-
-  if (password === "CHANGE_ME") {
-    console.error("[select.live] Password not set — still CHANGE_ME");
+  if (!email || !password || password === "CHANGE_ME") {
+    console.error("[select.live] Credentials are not configured");
     return null;
   }
 
   try {
-    const params = new URLSearchParams();
-    params.append("email", email);
-    params.append("pwd", password);
-
-    const res = await fetch(`${SELECT_LIVE_URL}/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+    const params = new URLSearchParams({ email, pwd: password });
+    const res = await fetchWithTimeout(
+      `${SELECT_LIVE_URL}/login`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: params.toString(),
+        redirect: "manual",
       },
-      body: params.toString(),
-      redirect: "manual",
-    });
+      requestTimeout(deadline)
+    );
 
     const setCookie = res.headers.get("set-cookie");
     if (!setCookie) {
-      console.error("[select.live] No Set-Cookie header in login response");
+      console.error(`[select.live] Login failed: HTTP ${res.status}, no session cookie`);
       return null;
     }
 
-    const cookies = setCookie
-      .split(",")
-      .map((c) => c.split(";")[0])
+    cachedCookies = setCookie
+      .split(/,(?=\s*[^;,=\s]+=[^;,]+)/)
+      .map((cookie) => cookie.split(";")[0])
       .join("; ");
-
-    cachedCookies = cookies;
     cookieExpiry = Date.now() + 25 * 60 * 1000;
-
-    return cookies;
-  } catch (err) {
-    console.error("[select.live] login error:", err);
+    return cachedCookies;
+  } catch (error) {
+    console.error("[select.live] Login error:", error);
     return null;
   }
 }
 
-async function getCookies(): Promise<string | null> {
-  if (cachedCookies && Date.now() < cookieExpiry) {
-    return cachedCookies;
-  }
-  return login();
+async function getCookies(deadline: number): Promise<string | null> {
+  if (cachedCookies && Date.now() < cookieExpiry) return cachedCookies;
+  return login(deadline);
 }
 
 function isMagicWindow(): boolean {
@@ -107,114 +110,146 @@ function isMagicWindow(): boolean {
   return minute >= 48 && minute <= 52;
 }
 
+function sourceDate(timestamp: number): Date | null {
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return null;
+  const milliseconds = timestamp > 10_000_000_000 ? timestamp : timestamp * 1000;
+  return parseSourceTimestamp(milliseconds);
+}
+
+async function requestPower(
+  systemNumber: string,
+  cookies: string,
+  deadline: number
+): Promise<Response> {
+  return fetchWithTimeout(
+    `${SELECT_LIVE_URL}/dashboard/hfdata/${systemNumber}`,
+    {
+      headers: { Cookie: cookies, Accept: "application/json" },
+      next: { revalidate: 0 },
+    },
+    requestTimeout(deadline)
+  );
+}
+
 export async function fetchPowerData(): Promise<PowerStatus | null> {
   const systemNumber = process.env.SELECT_LIVE_SYSTEM;
-
   if (!systemNumber) {
+    console.error("[select.live] SELECT_LIVE_SYSTEM is not configured");
     return null;
   }
 
+  // select.live performs a short hourly aggregation during this window.
   if (isMagicWindow()) {
-    console.log("[select.live] In magic window (minutes 48-52), skipping fetch");
+    console.warn("[select.live] Source aggregation window; refresh skipped");
     return getLatestPower();
   }
 
   try {
-    const cookies = await getCookies();
-    if (!cookies) return getLatestPower();
+    const deadline = Date.now() + SELECT_LIVE_DEADLINE_MS;
+    let cookies = await getCookies(deadline);
+    if (!cookies) return null;
 
-    const res = await fetch(
-      `${SELECT_LIVE_URL}/dashboard/hfdata/${systemNumber}`,
-      {
-        headers: {
-          Cookie: cookies,
-          Accept: "application/json",
-        },
-        next: { revalidate: 0 },
-      }
-    );
-
+    let res = await requestPower(systemNumber, cookies, deadline);
     if (res.status === 401 || res.status === 302) {
       cachedCookies = null;
       cookieExpiry = 0;
-      const freshCookies = await login();
-      if (!freshCookies) return getLatestPower();
-
-      const retryRes = await fetch(
-        `${SELECT_LIVE_URL}/dashboard/hfdata/${systemNumber}`,
-        {
-          headers: {
-            Cookie: freshCookies,
-            Accept: "application/json",
-          },
-          next: { revalidate: 0 },
-        }
-      );
-
-      if (!retryRes.ok) return getLatestPower();
-      const data: SelectLiveResponse = await retryRes.json();
-      return processAndStore(data);
+      cookies = await login(deadline);
+      if (!cookies) return null;
+      res = await requestPower(systemNumber, cookies, deadline);
     }
 
-    if (!res.ok) return getLatestPower();
+    if (!res.ok) {
+      console.error(`[select.live] Data fetch failed: HTTP ${res.status}`);
+      return null;
+    }
 
-    const data: SelectLiveResponse = await res.json();
-    return processAndStore(data);
-  } catch (err) {
-    console.error("[select.live] fetch error:", err);
-    return getLatestPower();
+    return await processAndStore((await res.json()) as SelectLiveResponse);
+  } catch (error) {
+    console.error("[select.live] Fetch error:", error);
+    return null;
   }
 }
 
-function processAndStore(data: SelectLiveResponse): PowerStatus {
+async function processAndStore(data: SelectLiveResponse): Promise<PowerStatus | null> {
   const items = data.items;
-  const totalSolar = (items.solarinverter_w || 0) + (items.shunt_w || 0);
-
+  if (!items) {
+    console.error("[select.live] Response contained no telemetry items");
+    return null;
+  }
+  const numericFields: (keyof SelectLiveData)[] = [
+    "battery_soc",
+    "battery_w",
+    "solarinverter_w",
+    "shunt_w",
+    "load_w",
+    "grid_w",
+    "gen_status",
+    "fault_code",
+    "battery_in_wh_today",
+    "battery_out_wh_today",
+    "solar_wh_today",
+    "load_wh_today",
+    "timestamp",
+  ];
+  if (numericFields.some((field) => !Number.isFinite(items[field]))) {
+    console.error("[select.live] Response contained invalid telemetry values");
+    return null;
+  }
+  const observedAt = sourceDate(items.timestamp);
+  if (!observedAt) {
+    console.error("[select.live] Response had no valid source timestamp");
+    return null;
+  }
   const status: PowerStatus = {
     batterySoc: items.battery_soc,
     batteryW: items.battery_w,
-    solarW: totalSolar,
+    solarW: items.solarinverter_w + items.shunt_w,
     loadW: items.load_w,
     gridW: items.grid_w,
     genStatus: items.gen_status,
     genRunning: items.gen_status > 0,
     faultCode: items.fault_code,
-    solarKwhToday: items.solar_wh_today,
-    loadKwhToday: items.load_wh_today,
-    batteryInKwhToday: items.battery_in_wh_today,
-    batteryOutKwhToday: items.battery_out_wh_today,
-    timestamp: items.timestamp || data.now,
-    stale: false,
+    solarKwhToday: items.solar_wh_today / 1000,
+    loadKwhToday: items.load_wh_today / 1000,
+    batteryInKwhToday: items.battery_in_wh_today / 1000,
+    batteryOutKwhToday: items.battery_out_wh_today / 1000,
+    ...observationMeta(observedAt, FRESHNESS_THRESHOLDS.power),
   };
 
-  prisma.powerReading
-    .create({
-      data: {
-        batterySoc: status.batterySoc,
-        batteryW: status.batteryW,
-        solarW: status.solarW,
-        loadW: status.loadW,
-        gridW: status.gridW,
-        genStatus: status.genStatus,
-        solarKwhToday: status.solarKwhToday,
-        loadKwhToday: status.loadKwhToday,
-        batteryInKwhToday: status.batteryInKwhToday,
-        batteryOutKwhToday: status.batteryOutKwhToday,
-      },
-    })
-    .catch((err) => console.error("[select.live] DB store error:", err));
+  const reading = {
+    batterySoc: status.batterySoc,
+    batteryW: status.batteryW,
+    solarW: status.solarW,
+    loadW: status.loadW,
+    gridW: status.gridW,
+    genStatus: status.genStatus,
+    faultCode: status.faultCode,
+    solarKwhToday: status.solarKwhToday,
+    loadKwhToday: status.loadKwhToday,
+    batteryInKwhToday: status.batteryInKwhToday,
+    batteryOutKwhToday: status.batteryOutKwhToday,
+  };
+
+  await prisma.powerReading.upsert({
+    where: { source_observedAt: { source: POWER_SOURCE, observedAt } },
+    create: {
+      ...reading,
+      source: POWER_SOURCE,
+      observedAt,
+      sourceTimestampTrusted: true,
+    },
+    update: { ...reading, sourceTimestampTrusted: true },
+  });
 
   return status;
 }
 
 export async function getLatestPower(): Promise<PowerStatus | null> {
   const latest = await prisma.powerReading.findFirst({
-    orderBy: { recordedAt: "desc" },
+    where: { sourceTimestampTrusted: true },
+    orderBy: { observedAt: "desc" },
   });
-
   if (!latest) return null;
-
-  const ageMin = (Date.now() - latest.recordedAt.getTime()) / (1000 * 60);
 
   return {
     batterySoc: latest.batterySoc,
@@ -224,38 +259,43 @@ export async function getLatestPower(): Promise<PowerStatus | null> {
     gridW: latest.gridW,
     genStatus: latest.genStatus,
     genRunning: latest.genStatus > 0,
-    faultCode: 0,
+    faultCode: latest.faultCode,
     solarKwhToday: latest.solarKwhToday,
     loadKwhToday: latest.loadKwhToday,
     batteryInKwhToday: latest.batteryInKwhToday,
     batteryOutKwhToday: latest.batteryOutKwhToday,
-    timestamp: latest.recordedAt.getTime() / 1000,
-    stale: ageMin > 10,
+    ...storedObservationMeta(
+      latest.observedAt,
+      FRESHNESS_THRESHOLDS.power,
+      latest.sourceTimestampTrusted
+    ),
   };
 }
 
-export async function getPowerHistory(hours: number = 24): Promise<PowerStatus[]> {
+export async function getPowerHistory(hours = 24): Promise<PowerStatus[]> {
   const since = new Date(Date.now() - hours * 60 * 60 * 1000);
-
   const readings = await prisma.powerReading.findMany({
-    where: { recordedAt: { gte: since } },
-    orderBy: { recordedAt: "asc" },
+    where: { observedAt: { gte: since }, sourceTimestampTrusted: true },
+    orderBy: { observedAt: "asc" },
   });
 
-  return readings.map((r) => ({
-    batterySoc: r.batterySoc,
-    batteryW: r.batteryW,
-    solarW: r.solarW,
-    loadW: r.loadW,
-    gridW: r.gridW,
-    genStatus: r.genStatus,
-    genRunning: r.genStatus > 0,
-    faultCode: 0,
-    solarKwhToday: r.solarKwhToday,
-    loadKwhToday: r.loadKwhToday,
-    batteryInKwhToday: r.batteryInKwhToday,
-    batteryOutKwhToday: r.batteryOutKwhToday,
-    timestamp: r.recordedAt.getTime() / 1000,
-    stale: false,
+  return readings.map((reading) => ({
+    batterySoc: reading.batterySoc,
+    batteryW: reading.batteryW,
+    solarW: reading.solarW,
+    loadW: reading.loadW,
+    gridW: reading.gridW,
+    genStatus: reading.genStatus,
+    genRunning: reading.genStatus > 0,
+    faultCode: reading.faultCode,
+    solarKwhToday: reading.solarKwhToday,
+    loadKwhToday: reading.loadKwhToday,
+    batteryInKwhToday: reading.batteryInKwhToday,
+    batteryOutKwhToday: reading.batteryOutKwhToday,
+    ...storedObservationMeta(
+      reading.observedAt,
+      FRESHNESS_THRESHOLDS.power,
+      reading.sourceTimestampTrusted
+    ),
   }));
 }

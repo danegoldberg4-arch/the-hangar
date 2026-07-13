@@ -1,6 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, requireUser } from "@/lib/api-auth";
+import {
+  internalError,
+  readJsonObject,
+  validationError,
+} from "@/lib/api-response";
+import { validatePlugInventoryCreate } from "@/lib/plug-inventory-validation";
 
 export async function GET() {
   const access = await requireUser();
@@ -8,6 +14,15 @@ export async function GET() {
 
   const plugs = await prisma.smartPlug.findMany({
     orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      deviceId: true,
+      ip: true,
+      room: true,
+      createdAt: true,
+    },
   });
 
   return NextResponse.json(plugs);
@@ -17,25 +32,28 @@ export async function POST(request: NextRequest) {
   const access = await requireAdmin();
   if (!access.ok) return access.response;
 
-  const body = await request.json();
-  const { name, type, deviceId, ip, room } = body;
+  const body = await readJsonObject(request);
+  if (!body.ok) return body.response;
 
-  if (!name || !deviceId) {
-    return NextResponse.json(
-      { error: "name and deviceId are required" },
-      { status: 400 }
-    );
+  const parsed = validatePlugInventoryCreate(body.value);
+  if (!parsed.ok) return validationError(parsed.errors);
+
+  try {
+    const plug = await prisma.smartPlug.create({
+      data: parsed.value,
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        deviceId: true,
+        ip: true,
+        room: true,
+        createdAt: true,
+      },
+    });
+
+    return NextResponse.json(plug, { status: 201 });
+  } catch (error) {
+    return internalError("create inventory device", error);
   }
-
-  const plug = await prisma.smartPlug.create({
-    data: {
-      name,
-      type: type || "tapo",
-      deviceId,
-      ip: ip || "",
-      room: room || "",
-    },
-  });
-
-  return NextResponse.json(plug, { status: 201 });
 }

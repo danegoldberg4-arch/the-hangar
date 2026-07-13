@@ -1,5 +1,5 @@
 [Unit]
-Description=The Hangar — Pi Relay
+Description=The Hangar Pi Relay
 After=network-online.target
 Wants=network-online.target
 
@@ -7,9 +7,22 @@ Wants=network-online.target
 Type=simple
 User=pi
 WorkingDirectory=/opt/hangar-relay
-ExecStart=/usr/bin/python3 /opt/hangar-relay/relay.py --server https://hangar.example.com --token YOUR_INGEST_TOKEN --interval 60
+# Create this as root:root mode 0600 with a single INGEST_TOKEN=... entry.
+EnvironmentFile=/etc/the-hangar-relay.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+StateDirectory=the-hangar-relay
+StateDirectoryMode=0700
+UMask=0077
+ExecStart=/opt/hangar-relay/.venv/bin/python /opt/hangar-relay/relay.py \
+    --server https://hangar.example.com \
+    --interval 60 \
+    --queue /var/lib/the-hangar-relay/outbox.sqlite3
 Restart=always
 RestartSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
 
 [Install]
 WantedBy=multi-user.target
