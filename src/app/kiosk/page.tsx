@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
 import {
   AreaChart,
   Area,
@@ -139,7 +138,7 @@ export default function KioskPage() {
     return (
       <div className="min-h-screen bg-steel flex items-center justify-center">
         <div className="text-center">
-          <Image src="/logo-nav.png" alt="The Hangar" width={48} height={48} className="mx-auto mb-4 rounded animate-pulse" />
+          <img src="/hangar-emblem.svg" alt="The Hangar" className="w-16 h-16 mx-auto mb-4 rounded-2xl animate-pulse" />
           <p className="font-narrow uppercase tracking-wider text-sm text-galv-dim">
             {loadError ? "Monitoring unavailable" : "Loading..."}
           </p>
@@ -212,7 +211,7 @@ export default function KioskPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <Image src="/logo-nav.png" alt="The Hangar" width={28} height={28} className="rounded" />
+          <img src="/hangar-emblem.svg" alt="The Hangar" className="w-9 h-9 rounded-xl" />
           <div>
             <h1 className="font-narrow font-bold uppercase text-xl tracking-tight text-paper">The Hangar</h1>
             <p className="font-narrow uppercase tracking-wider text-[0.6rem] text-galv-dim">Upper Kangaroo River · NSW</p>

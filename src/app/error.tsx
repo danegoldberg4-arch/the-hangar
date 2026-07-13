@@ -1,12 +1,10 @@
 "use client";
 
-import Image from "next/image";
-
 export default function Error({ reset }: { error: Error; reset: () => void }) {
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4">
       <div className="text-center max-w-md">
-        <Image src="/logo-nav.png" alt="The Hangar" width={40} height={40} className="mx-auto mb-4 rounded" />
+        <img src="/hangar-emblem.svg" alt="The Hangar" className="w-14 h-14 mx-auto mb-4 rounded-2xl" />
         <h1 className="font-narrow font-bold uppercase text-xl text-paper mb-2">
           Connection issue
         </h1>
