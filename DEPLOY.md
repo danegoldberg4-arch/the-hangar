@@ -1,81 +1,70 @@
-# Deploying The Hangar to Vercel + Supabase
+# Deploying The Hangar to Vercel and Neon
 
-## Step 1: Create Supabase Project
+## 1. Provision Neon
 
-1. Go to https://supabase.com → Sign up (free)
-2. New Project → name it "the-hangar" → pick a region close to AU (Singapore)
-3. Wait for provisioning (~2 min)
-4. Go to Settings → Database → Connection string → URI
-5. Copy the connection string (looks like `postgresql://postgres:password@db.xxx.supabase.co:5432/postgres`)
+Create the database in an Australian region. Use the pooled Neon connection endpoint for the Vercel `DATABASE_URL` and require certificate verification with `sslmode=verify-full`.
 
-## Step 2: Set Environment Variables Locally
+Do not place connection URLs directly in commands. Store them in `.env` locally and in the Vercel environment settings.
 
-Edit `.env`:
+## 2. Configure Environment
 
-```
-DATABASE_URL="postgresql://postgres:YOUR_PASSWORD@db.YOUR_PROJECT.supabase.co:5432/postgres"
-AUTH_SECRET="run: openssl rand -base64 32"
-CRON_SECRET="run: openssl rand -base64 32"
-INVITE_CODE="pick any word your family will know"
-```
+Start from `.env.example`. The required production values are:
 
-## Step 3: Push Database Schema
+- `DATABASE_URL`
+- `AUTH_SECRET`
+- `CRON_SECRET`
+- `INGEST_TOKEN`
+- `INVITE_CODE`
+
+The optional power integration uses `SELECT_LIVE_EMAIL`, `SELECT_LIVE_PWD`, and `SELECT_LIVE_SYSTEM`.
+
+Generate each secret independently with a cryptographically secure generator. A missing invite code must be treated as a deployment error, not as open registration.
+
+## 3. Apply the Schema
+
+Review committed SQL under `prisma/migrations`, take a backup, then run:
 
 ```bash
-npx prisma db push
+npm ci
+npx prisma migrate deploy
 ```
 
-This creates all tables in Supabase.
+Run migrations once as a release step. Do not run concurrent migrations from multiple application instances and do not use `prisma db push` in production.
 
-## Step 4: Seed Maintenance Data
+For an existing Neon database that was created with `prisma db push`, first verify that it matches `prisma/schema.prisma`, then register the baseline without executing it:
 
-Start the dev server:
 ```bash
-npm run dev
+npx prisma migrate resolve --applied 20260713000000_baseline
 ```
 
-Then in another terminal:
+This baseline command is a one-time transition step. Fresh databases should use `prisma migrate deploy` normally.
+
+## 4. Deploy
+
+Import `danegoldberg4-arch/the-hangar` into Vercel, configure all environment variables, and deploy from `main`. Before promoting a release, require the GitHub CI check and verify `/login`, the dashboard, and the scheduled poll endpoint.
+
+The application cron is defined in `vercel.json`. Confirm that the selected Vercel plan supports its frequency. Monitor missed runs and upstream failures; a successful HTTP response should mean at least one collector completed successfully.
+
+## 5. Bootstrap Access
+
+Create the initial administrator immediately after deployment using the configured invite code. Do not expose an application connected to an empty database before the intended administrator can claim it. Disable or restrict registration once the family accounts exist.
+
+## 6. Raspberry Pi Relay
+
+Install the relay under a dedicated unprivileged account. Keep its ingest token in a root-readable environment file or systemd credential rather than in `ExecStart` or shell history. Copy `scripts/relay.service`, replace the example domain, then enable it:
+
 ```bash
-curl -X POST http://localhost:3000/api/seed
+sudo systemctl daemon-reload
+sudo systemctl enable --now relay.service
+sudo systemctl status relay.service
 ```
 
-## Step 5: Deploy to Vercel
+Verify that the dashboard reports a recent relay timestamp. The relay should queue readings during internet outages and replay them using stable event identifiers.
 
-1. Push the project to GitHub
-2. Go to https://vercel.com → New Project → import the repo
-3. Add all environment variables (same as .env):
-   - `DATABASE_URL`
-   - `AUTH_SECRET`
-   - `CRON_SECRET`
-   - `INVITE_CODE`
-   - `SELECT_LIVE_EMAIL` (optional)
-   - `SELECT_LIVE_PWD` (optional)
-   - `SELECT_LIVE_SYSTEM` (optional)
-   - `INGEST_TOKEN` (optional)
-4. Deploy
+## Rollback and Recovery
 
-## Step 6: Sign Up
-
-Visit your Vercel URL → /signup → create your account (first user = admin)
-
-## Vercel Cron
-
-The app has one cron job configured in `vercel.json`:
-- `/api/cron/poll` — runs every 15 minutes, fetches weather + fire danger from BOM/RFS
-
-This keeps data fresh even when nobody's looking at the dashboard. The dashboard also fetches on page load if data is >15 min stale, so cron is a bonus, not a requirement.
-
-## Costs
-
-| Service | Free tier | Enough? |
-|---------|-----------|---------|
-| Vercel | 100GB bandwidth, unlimited serverless | Yes for 8 users |
-| Supabase | 500MB DB, 50k MAU, 2GB bandwidth | Yes |
-| Total | €0/month | |
-
-## Optional: Raspberry Pi Relay
-
-For Starlink monitoring, deploy a Pi at the house:
-1. Copy `scripts/relay.py` to the Pi
-2. Set `INGEST_TOKEN` in Vercel env vars
-3. Run: `python3 relay.py --server https://your-app.vercel.app --token YOUR_TOKEN`
+1. Stop the rollout if migrations or smoke checks fail.
+2. Restore the last verified Neon backup when a migration cannot be rolled forward safely.
+3. Redeploy the last known-good application commit.
+4. Rotate any credential exposed in logs or command history.
+5. Record the incident, affected data window, and corrective action.
