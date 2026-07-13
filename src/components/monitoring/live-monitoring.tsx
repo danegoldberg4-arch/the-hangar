@@ -92,9 +92,9 @@ export function LiveMonitoring({ initialData }: { initialData: MonitoringData | 
   }, []);
 
   const refresh = useCallback(async () => {
-    if (!visible) return;
+    if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
     try {
-      const res = await fetch("/api/monitoring", { cache: "no-store" });
+      const res = await fetch("/api/monitoring", { cache: "no-store", credentials: "same-origin" });
       if (res.ok) {
         const fresh = await res.json();
         setData(fresh);
@@ -102,6 +102,15 @@ export function LiveMonitoring({ initialData }: { initialData: MonitoringData | 
     } catch {
       // keep existing data
     }
+  }, []);
+
+  useEffect(() => {
+    if (!visible) return;
+    const doRefresh = () => { void refresh(); };
+    doRefresh();
+    const interval = setInterval(doRefresh, 60000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
   useEffect(() => {
@@ -111,7 +120,31 @@ export function LiveMonitoring({ initialData }: { initialData: MonitoringData | 
   }, [visible, refresh]);
 
   if (!data) {
-    return <div className="card-surface p-4 sm:p-5 text-sm text-galv-dim">Loading monitoring data...</div>;
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="card-surface p-4 sm:p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+            <h3 className="font-narrow uppercase tracking-wider text-xs font-bold text-galv">Power</h3>
+          </div>
+          <div className="font-narrow font-bold text-3xl text-galv-dim">—%</div>
+        </div>
+        <div className="card-surface p-4 sm:p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="w-1.5 h-1.5 rounded-full bg-galv-dim" />
+            <h3 className="font-narrow uppercase tracking-wider text-xs font-bold text-galv">Generator</h3>
+          </div>
+          <div className="font-narrow font-bold text-xl text-galv-dim">Standby</div>
+        </div>
+        <div className="card-surface p-4 sm:p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+            <h3 className="font-narrow uppercase tracking-wider text-xs font-bold text-galv">Weather</h3>
+          </div>
+          <div className="font-narrow font-bold text-3xl text-galv-dim">—°</div>
+        </div>
+      </div>
+    );
   }
 
   const power = data.power;

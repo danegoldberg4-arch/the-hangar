@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/api-auth";
-import { fetchPowerData, getLatestPower } from "@/lib/integrations/selectlive";
+import { getLatestPower, fetchPowerData } from "@/lib/integrations/selectlive";
 import { fetchCurrentWeather, fetchSunTimes } from "@/lib/integrations/forecast";
 import { getLatestFireDanger, fetchWeatherWarnings } from "@/lib/integrations/weather";
 
@@ -15,18 +15,22 @@ export async function GET() {
   const now = new Date();
   const fifteenMinAgo = new Date(now.getTime() - 15 * 60 * 1000);
 
-  const [existingPower, fireDanger, weather, sunTimes, warnings, starlink] = await Promise.all([
+  // Read from DB first — fast
+  const [existingPower, fireDanger, starlink] = await Promise.all([
     getLatestPower(),
     getLatestFireDanger(),
-    fetchCurrentWeather(),
-    fetchSunTimes(),
-    fetchWeatherWarnings(),
     prisma.starlinkStatus.findFirst({ orderBy: { observedAt: "desc" } }),
   ]);
 
+  // Only fetch from external APIs if DB data is stale — parallel
   const powerStale = !existingPower || (existingPower.observedAt ? new Date(existingPower.observedAt) < fifteenMinAgo : true);
-  const freshPower = powerStale ? await fetchPowerData() : null;
-  const power = freshPower || existingPower;
+
+  const [power, weather, sunTimes, warnings] = await Promise.all([
+    powerStale ? fetchPowerData() : Promise.resolve(existingPower),
+    fetchCurrentWeather(), // Open-Meteo is fast (~200ms), always fetch
+    fetchSunTimes(),       // Same API, fast
+    fetchWeatherWarnings(), // BOM RSS, fast
+  ]);
 
   return NextResponse.json({
     power: power ? {
