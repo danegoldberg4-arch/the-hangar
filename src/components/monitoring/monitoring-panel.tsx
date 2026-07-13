@@ -65,10 +65,10 @@ export async function MonitoringPanel() {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
       {/* Power */}
-      <div className="card-surface p-4 sm:p-5">
+      <div className="card-surface p-4 sm:p-5 fade-in">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+            <span className={`w-1.5 h-1.5 rounded-full bg-amber-400 ${power && !power.stale ? "glow-dot text-amber-400" : ""}`} />
             <h3 className="font-narrow uppercase tracking-wider text-xs font-bold text-galv">Power</h3>
           </div>
           <span className={`font-narrow uppercase tracking-wider text-[0.55rem] ${power?.stale ? "text-galv-dim" : "text-green-400"}`}>
@@ -104,10 +104,10 @@ export async function MonitoringPanel() {
       </div>
 
       {/* Generator */}
-      <div className="card-surface p-4 sm:p-5">
+      <div className="card-surface p-4 sm:p-5 fade-in">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <span className={`w-1.5 h-1.5 rounded-full ${power?.genRunning ? "bg-amber-400 animate-pulse" : "bg-galv-dim"}`} />
+            <span className={`w-1.5 h-1.5 rounded-full ${power?.genRunning ? "bg-amber-400 glow-dot text-amber-400" : "bg-galv-dim"}`} />
             <h3 className="font-narrow uppercase tracking-wider text-xs font-bold text-galv">Generator</h3>
           </div>
           <span className={`font-narrow uppercase tracking-wider text-[0.55rem] ${power?.genRunning ? "text-amber-400" : "text-galv-dim"}`}>
@@ -145,10 +145,10 @@ export async function MonitoringPanel() {
       </div>
 
       {/* Weather */}
-      <div className="card-surface p-4 sm:p-5">
+      <div className="card-surface p-4 sm:p-5 fade-in">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-400 glow-dot text-sky-400" />
             <h3 className="font-narrow uppercase tracking-wider text-xs font-bold text-galv">Weather</h3>
           </div>
           <span className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">
@@ -216,10 +216,10 @@ export async function MonitoringPanel() {
       </div>
 
       {/* Fire Danger */}
-      <div className="card-surface p-4 sm:p-5">
+      <div className="card-surface p-4 sm:p-5 fade-in">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <span className={`w-1.5 h-1.5 rounded-full ${fdr?.dot || "bg-galv-dim"}`} />
+            <span className={`w-1.5 h-1.5 rounded-full ${fdr?.dot || "bg-galv-dim"} glow-dot`} />
             <h3 className="font-narrow uppercase tracking-wider text-xs font-bold text-galv">Fire Danger</h3>
           </div>
           <span className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">Illawarra/Shoalhaven</span>
@@ -277,10 +277,10 @@ export async function MonitoringPanel() {
       )}
 
       {/* Starlink */}
-      <div className={`card-surface p-4 sm:p-5 ${warnings.length === 0 ? "sm:col-span-1" : ""}`}>
+      <div className={`card-surface p-4 sm:p-5 fade-in ${warnings.length === 0 ? "sm:col-span-1" : ""}`}>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <span className={`w-1.5 h-1.5 rounded-full ${starlink?.connected ? "bg-green-400" : "bg-galv-dim"}`} />
+            <span className={`w-1.5 h-1.5 rounded-full ${starlink?.connected ? "bg-green-400 glow-dot text-green-400" : "bg-galv-dim"}`} />
             <h3 className="font-narrow uppercase tracking-wider text-xs font-bold text-galv">Starlink</h3>
           </div>
           <span className={`font-narrow uppercase tracking-wider text-[0.55rem] ${starlink?.connected ? "text-green-400" : "text-galv-dim"}`}>
