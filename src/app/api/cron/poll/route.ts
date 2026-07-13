@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { fetchWeatherObservation, fetchFireDanger } from "@/lib/integrations/weather";
+import { fetchPowerData } from "@/lib/integrations/selectlive";
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -9,15 +10,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const [weather, fire] = await Promise.all([
+  const [weather, fire, power] = await Promise.all([
     fetchWeatherObservation(),
     fetchFireDanger(),
+    fetchPowerData(),
   ]);
 
   return NextResponse.json({
     ok: true,
-    weather: weather ? `${weather.airTemp}°C at ${weather.station}` : "failed",
+    weather: weather ? `${weather.airTemp}°C` : "failed",
     fireDanger: fire ? fire.dangerToday : "failed",
+    power: power ? `Battery ${power.batterySoc.toFixed(0)}% | Solar ${power.solarW.toFixed(0)}W | Load ${power.loadW.toFixed(0)}W` : "failed",
     fetchedAt: new Date().toISOString(),
   });
 }
