@@ -4,6 +4,12 @@
   "description": "Off-grid house monitoring & maintenance for The Hangar, Upper Kangaroo River, NSW",
   "icons": [
     {
+      "src": "/hangar-emblem.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
       "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",

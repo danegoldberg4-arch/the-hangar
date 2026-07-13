@@ -17,8 +17,17 @@ export async function Nav() {
   return (
     <header className="sticky top-0 z-50 border-b border-line bg-steel w-full max-w-full overflow-hidden">
       <div className="max-w-[1180px] mx-auto px-3 sm:px-8 flex items-center justify-between h-14 gap-2">
-        <Link href="/" className="flex items-center gap-2.5 group flex-none">
-          <img src="/hangar-emblem.png" alt="The Hangar" className="w-8 h-8 rounded-lg" />
+        <Link
+          href="/"
+          aria-label="The Hangar dashboard"
+          className="flex items-center gap-2.5 group flex-none"
+        >
+          <img
+            src="/hangar-emblem.svg"
+            alt=""
+            aria-hidden="true"
+            className="size-9 object-contain shrink-0"
+          />
           <span className="font-narrow font-bold uppercase tracking-[0.15em] text-[0.65rem] sm:text-xs text-paper group-hover:text-iron-lt transition-colors hidden sm:inline">
             The Hangar
           </span>
