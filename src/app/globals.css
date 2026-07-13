@@ -117,6 +117,14 @@ body {
   animation: shimmer 1.5s infinite;
 }
 
+.hangar-brand-light {
+  display: none;
+}
+
+.hangar-brand-dark {
+  display: block;
+}
+
 /* Ambient gradient on body */
 body::before {
   content: "";
@@ -206,6 +214,14 @@ button:active {
     background: linear-gradient(180deg, var(--color-steel-2) 0%, #f9f7f2 100%);
     border: 1px solid var(--color-line);
   }
+
+  :root:not([data-theme="dark"]) .hangar-brand-light {
+    display: block;
+  }
+
+  :root:not([data-theme="dark"]) .hangar-brand-dark {
+    display: none;
+  }
 }
 
 /* Manual: user toggled light */
@@ -238,6 +254,14 @@ button:active {
 :root[data-theme="light"] .card-surface {
   background: linear-gradient(180deg, var(--color-steel-2) 0%, #f9f7f2 100%);
   border: 1px solid var(--color-line);
+}
+
+:root[data-theme="light"] .hangar-brand-light {
+  display: block;
+}
+
+:root[data-theme="light"] .hangar-brand-dark {
+  display: none;
 }
 
 :root[data-theme="light"] .card-surface:hover {

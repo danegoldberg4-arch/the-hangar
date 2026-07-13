@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { auth, signOut } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { HangarBrand } from "@/components/brand/hangar-brand";
 
 const navItems = [
   { href: "/", label: "Dashboard" },
@@ -20,16 +21,15 @@ export async function Nav() {
         <Link
           href="/"
           aria-label="The Hangar dashboard"
-          className="flex items-center gap-2.5 group flex-none"
+          className="flex items-center flex-none"
         >
-          <img
-            src="/hangar-emblem.svg"
+          <HangarBrand
+            variant="app-icon"
             alt=""
-            aria-hidden="true"
-            className="size-9 object-contain shrink-0"
+            className="size-9 sm:hidden"
           />
-          <span className="font-narrow font-bold uppercase tracking-[0.15em] text-[0.65rem] sm:text-xs text-paper group-hover:text-iron-lt transition-colors hidden sm:inline">
-            The Hangar
+          <span className="hidden sm:block w-[9.5rem]">
+            <HangarBrand variant="signature" alt="" className="w-full" />
           </span>
         </Link>
 
