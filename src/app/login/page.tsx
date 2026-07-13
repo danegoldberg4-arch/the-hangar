@@ -14,7 +14,7 @@ export default async function LoginPage({
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <img src="/hangar-emblem.svg" alt="The Hangar" className="w-16 h-16 mx-auto mb-4 rounded-2xl" />
+          <img src="/hangar-emblem.png" alt="The Hangar" className="w-16 h-16 mx-auto mb-4 rounded-2xl" />
           <h1 className="font-narrow font-bold uppercase text-2xl tracking-tight text-paper">
             The Hangar
           </h1>
