@@ -1,11 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { computeNextDue } from "@/lib/maintenance";
+import { requireAdmin, requireUser } from "@/lib/api-auth";
 
 export async function GET(
   _req: NextRequest,
   ctx: RouteContext<"/api/maintenance/[id]">
 ) {
+  const access = await requireUser();
+  if (!access.ok) return access.response;
+
   const { id } = await ctx.params;
   const item = await prisma.maintenanceItem.findUnique({
     where: { id },
@@ -27,6 +31,9 @@ export async function PUT(
   request: NextRequest,
   ctx: RouteContext<"/api/maintenance/[id]">
 ) {
+  const access = await requireAdmin();
+  if (!access.ok) return access.response;
+
   const { id } = await ctx.params;
   const body = await request.json();
 
@@ -70,6 +77,9 @@ export async function DELETE(
   _req: NextRequest,
   ctx: RouteContext<"/api/maintenance/[id]">
 ) {
+  const access = await requireAdmin();
+  if (!access.ok) return access.response;
+
   const { id } = await ctx.params;
   await prisma.maintenanceItem.delete({ where: { id } });
   return NextResponse.json({ ok: true });

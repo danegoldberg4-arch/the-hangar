@@ -33,7 +33,7 @@ const systems = [
   {
     name: "Internet",
     desc: "Starlink. Not guaranteed — bring a backup plan if you need to be online. Please don't reset the modem.",
-    detail: "Network: Starlink1 · Password: Starlink1",
+    detail: "Connection details are shared privately by the host.",
     tag: "Best-effort",
   },
 ];
@@ -41,7 +41,7 @@ const systems = [
 const guestFacts = [
   {
     title: "Wi-Fi",
-    body: "Network: Starlink1 · Password: Starlink1",
+    body: "Ask the host for the current network details when you arrive.",
     note: "Reliability isn't guaranteed. Don't press reset — power-cycle instead.",
   },
   {
@@ -90,7 +90,7 @@ const troubleshooting = [
   },
   {
     q: "Internet / Wi-Fi",
-    a: "Password is Starlink1. Do NOT press reset on the modem. Power-cycle: modem off, wait 10 seconds, back on. Give it up to 10 minutes to reboot. Starlink isn't guaranteed — have a backup plan if you need to be online.",
+    a: "Do NOT press reset on the modem. Power-cycle: modem off, wait 10 seconds, back on. Give it up to 10 minutes to reboot. Starlink isn't guaranteed — have a backup plan if you need to be online.",
   },
   {
     q: "BBQ gas not flowing",
@@ -131,7 +131,7 @@ export default function HandbookPage() {
             <span><b className="text-iron-lt">4</b> bedrooms · sleeps 8</span>
             <span><b className="text-iron-lt">46.33</b> ha rainforest</span>
             <span><b className="text-iron-lt">15 kW</b> solar · <b className="text-iron-lt">26 kWh</b> battery</span>
-            <span>38E Scotts Road</span>
+            <span>Upper Kangaroo River</span>
           </div>
         </div>
       </header>
@@ -296,17 +296,15 @@ export default function HandbookPage() {
                 The property
               </h4>
               <p className="text-sm text-paper/80 mb-1">The Hangar (Protohouse No. V)</p>
-              <p className="text-sm text-paper/80 mb-1">38E Scotts Road</p>
               <p className="text-sm text-paper/80 mb-1">Upper Kangaroo River, NSW 2577</p>
               <p className="text-sm text-paper/80">~396 m² · 46.33 ha</p>
             </div>
             <div>
               <h4 className="font-narrow uppercase tracking-wider text-xs text-iron-lt mb-3">
-                Locals
+                Help
               </h4>
-              <p className="text-sm text-paper/80 mb-1">Sebastian — machinery, building, grounds</p>
-              <p className="text-sm text-paper/80 mb-1">Chris — handyman (~30 min)</p>
-              <p className="text-sm text-paper/80">Cleaners — book before & after, ~$200/clean</p>
+              <p className="text-sm text-paper/80 mb-1">Contact the host for property support.</p>
+              <p className="text-sm text-paper/80">For an emergency, call 000.</p>
             </div>
             <div>
               <h4 className="font-narrow uppercase tracking-wider text-xs text-iron-lt mb-3">

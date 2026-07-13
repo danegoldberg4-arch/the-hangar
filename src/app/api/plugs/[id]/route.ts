@@ -1,16 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { enforceAdmin, requireAdmin, requireUser } from "@/lib/api-auth";
 import { parseAutomation, serializeAutomation, type PlugAutomation } from "@/lib/plugs";
 
 export async function PATCH(
   request: NextRequest,
   ctx: RouteContext<"/api/plugs/[id]">
 ) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const access = await requireUser();
+  if (!access.ok) return access.response;
 
   const { id } = await ctx.params;
   const body = await request.json();
@@ -47,6 +45,9 @@ export async function PATCH(
   }
 
   if (automation !== undefined) {
+    const forbidden = enforceAdmin(access.user);
+    if (forbidden) return forbidden;
+
     const auto: PlugAutomation = { ...parseAutomation(plug.automation), ...automation };
     const updated = await prisma.smartPlug.update({
       where: { id },
@@ -56,6 +57,9 @@ export async function PATCH(
   }
 
   if (name !== undefined || room !== undefined) {
+    const forbidden = enforceAdmin(access.user);
+    if (forbidden) return forbidden;
+
     const updated = await prisma.smartPlug.update({
       where: { id },
       data: {
@@ -73,10 +77,8 @@ export async function DELETE(
   _req: NextRequest,
   ctx: RouteContext<"/api/plugs/[id]">
 ) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const access = await requireAdmin();
+  if (!access.ok) return access.response;
 
   const { id } = await ctx.params;
   await prisma.smartPlug.delete({ where: { id } });

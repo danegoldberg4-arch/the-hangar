@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSession } from "next-auth/react";
 
 interface Plug {
   id: string;
@@ -30,6 +31,8 @@ function parseAutomation(data: string): PlugAutomation {
 }
 
 export function PlugBoard() {
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.role === "admin";
   const [plugs, setPlugs] = useState<Plug[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -115,7 +118,7 @@ export function PlugBoard() {
       </div>
 
       {/* Add button / form */}
-      {!showForm ? (
+      {isAdmin && (!showForm ? (
         <button
           onClick={() => setShowForm(true)}
           className="font-narrow uppercase tracking-wider text-xs font-bold text-steel bg-sand hover:bg-paper rounded-md px-4 py-2.5 transition-colors"
@@ -196,7 +199,7 @@ export function PlugBoard() {
             </button>
           </div>
         </form>
-      )}
+      ))}
 
       {/* Plugs list */}
       <div className="space-y-3">
@@ -205,7 +208,7 @@ export function PlugBoard() {
         ) : plugs.length === 0 ? (
           <div className="card-surface p-6 text-center">
             <p className="text-sm text-galv-dim">
-              No plugs added yet. Add a smart plug to control appliances remotely and automate based on solar conditions.
+              No plugs are configured yet.
             </p>
           </div>
         ) : (
@@ -246,18 +249,22 @@ export function PlugBoard() {
                         Auto
                       </span>
                     )}
-                    <button
-                      onClick={() => setExpandedPlug(isExpanded ? null : plug.id)}
-                      className="text-galv-dim hover:text-iron text-xs px-1"
-                    >
-                      {isExpanded ? "−" : "⚙"}
-                    </button>
-                    <button
-                      onClick={() => deletePlug(plug.id)}
-                      className="text-galv-dim hover:text-iron text-xs px-1"
-                    >
-                      ×
-                    </button>
+                    {isAdmin && (
+                      <>
+                        <button
+                          onClick={() => setExpandedPlug(isExpanded ? null : plug.id)}
+                          className="text-galv-dim hover:text-iron text-xs px-1"
+                        >
+                          {isExpanded ? "−" : "⚙"}
+                        </button>
+                        <button
+                          onClick={() => deletePlug(plug.id)}
+                          className="text-galv-dim hover:text-iron text-xs px-1"
+                        >
+                          ×
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
 

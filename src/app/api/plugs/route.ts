@@ -1,12 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { requireAdmin, requireUser } from "@/lib/api-auth";
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const access = await requireUser();
+  if (!access.ok) return access.response;
 
   const plugs = await prisma.smartPlug.findMany({
     orderBy: { name: "asc" },
@@ -16,10 +14,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const access = await requireAdmin();
+  if (!access.ok) return access.response;
 
   const body = await request.json();
   const { name, type, deviceId, ip, room } = body;

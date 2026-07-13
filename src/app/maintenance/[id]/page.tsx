@@ -12,6 +12,7 @@ export default async function MaintenanceDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const session = await auth();
+  const isAdmin = session?.user?.role === "admin";
   const { id } = await params;
   const item = await prisma.maintenanceItem.findUnique({
     where: { id },
@@ -194,21 +195,25 @@ export default async function MaintenanceDetailPage({
             </h2>
             <LogForm itemId={item.id} parts={item.parts} userName={session?.user?.name || "Unknown"} />
 
-            <div className="h-px bg-line my-4" />
-            <h3 className="font-narrow uppercase tracking-wider text-sm font-bold text-galv mb-3">
-              Edit
-            </h3>
-            <EditForm
-              itemId={item.id}
-              name={item.name}
-              category={item.category}
-              description={item.description}
-              intervalDays={item.intervalDays}
-              intervalLabel={item.intervalLabel}
-              assignedTo={item.assignedTo}
-              notes={item.notes}
-              nextDueAt={item.nextDueAt?.toISOString() ?? null}
-            />
+            {isAdmin && (
+              <>
+                <div className="h-px bg-line my-4" />
+                <h3 className="font-narrow uppercase tracking-wider text-sm font-bold text-galv mb-3">
+                  Edit
+                </h3>
+                <EditForm
+                  itemId={item.id}
+                  name={item.name}
+                  category={item.category}
+                  description={item.description}
+                  intervalDays={item.intervalDays}
+                  intervalLabel={item.intervalLabel}
+                  assignedTo={item.assignedTo}
+                  notes={item.notes}
+                  nextDueAt={item.nextDueAt?.toISOString() ?? null}
+                />
+              </>
+            )}
           </div>
         </div>
       </div>

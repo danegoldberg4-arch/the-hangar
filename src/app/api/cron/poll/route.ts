@@ -1,12 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { fetchWeatherObservation, fetchFireDanger } from "@/lib/integrations/weather";
 import { fetchPowerData } from "@/lib/integrations/selectlive";
+import { hasValidBearerToken } from "@/lib/bearer-auth";
 
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
 
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  if (!hasValidBearerToken(request, cronSecret)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

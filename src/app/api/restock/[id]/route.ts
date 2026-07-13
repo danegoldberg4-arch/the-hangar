@@ -1,15 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/api-auth";
 
 export async function PATCH(
   request: NextRequest,
   ctx: RouteContext<"/api/restock/[id]">
 ) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const access = await requireUser();
+  if (!access.ok) return access.response;
 
   const { id } = await ctx.params;
   const body = await request.json();
@@ -20,7 +18,7 @@ export async function PATCH(
       where: { id },
       data: {
         isResolved: true,
-        resolvedBy: session.user.name || "Unknown",
+        resolvedBy: access.user.name || "Unknown",
         resolvedAt: new Date(),
       },
     });
@@ -46,10 +44,8 @@ export async function DELETE(
   _req: NextRequest,
   ctx: RouteContext<"/api/restock/[id]">
 ) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const access = await requireUser();
+  if (!access.ok) return access.response;
 
   const { id } = await ctx.params;
   await prisma.restockItem.delete({ where: { id } });

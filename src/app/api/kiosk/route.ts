@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/api-auth";
 import { calculateStatus } from "@/lib/maintenance";
 import { fetchCurrentWeather, fetchForecast, fetchSunTimes } from "@/lib/integrations/forecast";
 import { getLatestFireDanger } from "@/lib/integrations/weather";
@@ -8,10 +8,8 @@ import { getLatestPower, fetchPowerData } from "@/lib/integrations/selectlive";
 import { getRainSummary } from "@/lib/integrations/rain";
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const access = await requireUser();
+  if (!access.ok) return access.response;
 
   const now = new Date();
 

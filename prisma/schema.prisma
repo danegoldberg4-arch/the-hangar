@@ -18,6 +18,17 @@ model User {
   visits        Visit[]
 }
 
+model AuthRateLimit {
+  keyHash         String   @id @db.Char(64)
+  scope           String   @db.VarChar(32)
+  attempts        Int      @default(0)
+  windowStartedAt DateTime
+  expiresAt       DateTime
+  updatedAt       DateTime @updatedAt
+
+  @@index([expiresAt])
+}
+
 model MaintenanceItem {
   id             String   @id @default(cuid())
   name           String

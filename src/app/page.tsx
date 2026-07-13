@@ -162,7 +162,7 @@ export default async function DashboardPage() {
       {/* Footer */}
       <div className="border-t border-line pt-6">
         <p className="text-xs text-galv-dim">
-          <span className="font-narrow uppercase tracking-wider text-galv">The Hangar</span> · Protohouse No. V · 38E Scotts Rd · Upper Kangaroo River NSW 2577
+          <span className="font-narrow uppercase tracking-wider text-galv">The Hangar</span> · Protohouse No. V · Upper Kangaroo River NSW
         </p>
       </div>
     </div>
