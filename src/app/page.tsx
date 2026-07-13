@@ -10,6 +10,7 @@ import { RainWidget } from "@/components/weather/rain-widget";
 import { ForecastWidget } from "@/components/weather/forecast-widget";
 import { PowerHistoryChart } from "@/components/weather/power-history-chart";
 import { VisitSummary } from "@/components/visits/visit-summary";
+import { PlugSummary } from "@/components/plugs/plug-summary";
 
 export const maxDuration = 30;
 export const dynamic = "force-dynamic";
@@ -119,6 +120,13 @@ export default async function DashboardPage() {
             <RestockSummary />
           </Suspense>
         </div>
+      </div>
+
+      {/* Plugs (only shows if plugs exist) */}
+      <div className="mb-8">
+        <Suspense fallback={null}>
+          <PlugSummary />
+        </Suspense>
       </div>
 
       {/* Visits + Rain + Forecast */}

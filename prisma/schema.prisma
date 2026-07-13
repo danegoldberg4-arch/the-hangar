@@ -165,3 +165,19 @@ model Visit {
 
   @@index([startDate, endDate])
 }
+
+model SmartPlug {
+  id          String    @id @default(cuid())
+  name        String
+  type        String    @default("tapo")
+  deviceId    String
+  ip          String    @default("")
+  room        String    @default("")
+  isOn        Boolean   @default(false)
+  powerW      Float     @default(0)
+  automation  String    @default("{}")
+  lastSeen    DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([type, deviceId])
+}
