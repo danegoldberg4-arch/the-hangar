@@ -46,7 +46,12 @@ export default function SignupPage() {
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-sm">
         <div className="text-center mb-6">
-          <img src="/hangar-emblem.png" alt="The Hangar" className="w-16 h-16 mx-auto mb-3 rounded-2xl" />
+          <img
+            src="/hangar-emblem.svg"
+            alt=""
+            aria-hidden="true"
+            className="size-24 sm:size-28 object-contain mx-auto mb-4"
+          />
           <h1 className="font-narrow font-bold uppercase text-2xl tracking-tight text-paper">
             The Hangar
           </h1>
