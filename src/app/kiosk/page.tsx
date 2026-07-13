@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import {
   AreaChart,
   Area,
@@ -138,9 +139,7 @@ export default function KioskPage() {
     return (
       <div className="min-h-screen bg-steel flex items-center justify-center">
         <div className="text-center">
-          <svg viewBox="0 0 24 24" className="w-12 h-12 stroke-iron fill-none mx-auto mb-4 animate-pulse" strokeWidth={1.5}>
-            <path d="M2 20h20M4 20V9l8-5 8 5v11M9 20v-6h6v6" />
-          </svg>
+          <Image src="/logo-nav.png" alt="The Hangar" width={48} height={48} className="mx-auto mb-4 rounded animate-pulse" />
           <p className="font-narrow uppercase tracking-wider text-sm text-galv-dim">
             {loadError ? "Monitoring unavailable" : "Loading..."}
           </p>
@@ -213,9 +212,7 @@ export default function KioskPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <svg viewBox="0 0 24 24" className="w-6 h-6 stroke-iron fill-none" strokeWidth={1.5}>
-            <path d="M2 20h20M4 20V9l8-5 8 5v11M9 20v-6h6v6" />
-          </svg>
+          <Image src="/logo-nav.png" alt="The Hangar" width={28} height={28} className="rounded" />
           <div>
             <h1 className="font-narrow font-bold uppercase text-xl tracking-tight text-paper">The Hangar</h1>
             <p className="font-narrow uppercase tracking-wider text-[0.6rem] text-galv-dim">Upper Kangaroo River · NSW</p>
