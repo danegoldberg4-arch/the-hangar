@@ -22,5 +22,5 @@ export async function PowerHistoryChart() {
     batteryW: Math.round(r.batteryW),
   }));
 
-  return <PowerChart data={data} />;
+  return <PowerChart initialData={data} />;
 }

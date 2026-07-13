@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useCallback } from "react";
 import {
   AreaChart,
   Area,
@@ -19,7 +20,37 @@ interface Reading {
   batteryW: number;
 }
 
-export function PowerChart({ data }: { data: Reading[] }) {
+type Range = "1h" | "6h" | "24h";
+
+const rangeHours: Record<Range, number> = { "1h": 1, "6h": 6, "24h": 24 };
+
+export function PowerChart({ initialData }: { initialData: Reading[] }) {
+  const [range, setRange] = useState<Range>("6h");
+  const [data, setData] = useState<Reading[]>(initialData);
+  const [loading, setLoading] = useState(false);
+
+  const switchRange = useCallback(async (r: Range) => {
+    setRange(r);
+    if (r === "24h" && initialData.length > 0) {
+      // 24h uses server-rendered initial data
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/power?hours=${rangeHours[r]}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.history) {
+          setData(json.history);
+        }
+      }
+    } catch {
+      // keep existing data
+    } finally {
+      setLoading(false);
+    }
+  }, [initialData]);
+
   if (data.length < 2) {
     return (
       <div className="card-surface p-4 sm:p-5">
@@ -28,7 +59,7 @@ export function PowerChart({ data }: { data: Reading[] }) {
           <h3 className="font-narrow uppercase tracking-wider text-xs font-bold text-galv">Power History</h3>
         </div>
         <p className="text-xs text-galv-dim leading-relaxed">
-          Collecting data. The 15-minute monitor needs at least two successful samples.
+          Collecting data — the 15-minute poll needs at least two samples. Check back shortly.
         </p>
       </div>
     );
@@ -41,19 +72,20 @@ export function PowerChart({ data }: { data: Reading[] }) {
           <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
           <h3 className="font-narrow uppercase tracking-wider text-xs font-bold text-galv">Power History</h3>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-amber-400" />
-            <span className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">Solar</span>
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-green-400" />
-            <span className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">Battery %</span>
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-sky-400" />
-            <span className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">Load</span>
-          </span>
+        <div className="flex gap-1">
+          {(["1h", "6h", "24h"] as Range[]).map((r) => (
+            <button
+              key={r}
+              onClick={() => switchRange(r)}
+              className={`font-narrow uppercase tracking-wider text-[0.6rem] font-bold px-2.5 py-1 rounded-md transition-colors ${
+                range === r
+                  ? "bg-amber-400 text-steel"
+                  : "text-galv-dim border border-line hover:bg-steel-3"
+              }`}
+            >
+              {r === "1h" ? "1H" : r === "6h" ? "6H" : "24H"}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -76,7 +108,7 @@ export function PowerChart({ data }: { data: Reading[] }) {
             tickLine={false}
             axisLine={false}
             interval="preserveStartEnd"
-            minTickGap={40}
+            minTickGap={range === "1h" ? 10 : range === "6h" ? 30 : 40}
           />
           <YAxis
             yAxisId="watts"
@@ -139,11 +171,22 @@ export function PowerChart({ data }: { data: Reading[] }) {
 
       <div className="flex items-center justify-between mt-3 pt-3 border-t border-line">
         <span className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">
-          {data.length} readings · last 24h
+          {loading ? "Loading..." : `${data.length} readings · ${range}`}
         </span>
-        <span className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">
-          Updates every 15 min
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-amber-400" />
+            <span className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">Solar</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-green-400" />
+            <span className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">Battery %</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-sky-400" />
+            <span className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">Load</span>
+          </span>
+        </div>
       </div>
     </div>
   );
