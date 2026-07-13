@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import {
   calculateStatus,
 } from "@/lib/maintenance";
-import { MonitoringPanel } from "@/components/monitoring/monitoring-panel";
+import { LiveMonitoring } from "@/components/monitoring/live-monitoring";
 import { RestockSummary } from "@/components/restock/restock-summary";
 import { RainWidget } from "@/components/weather/rain-widget";
 import { ForecastWidget } from "@/components/weather/forecast-widget";
@@ -83,7 +83,7 @@ export default async function DashboardPage() {
           System Monitoring
         </h2>
         <Suspense fallback={<div className="card-surface p-4 sm:p-5 text-sm text-galv-dim">Loading monitoring data...</div>}>
-          <MonitoringPanel />
+          <LiveMonitoring initialData={null} />
         </Suspense>
 
         <div className="mt-3">
