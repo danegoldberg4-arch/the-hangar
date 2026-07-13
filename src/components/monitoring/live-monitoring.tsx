@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { WeatherIcon } from "@/components/weather/weather-icon";
 
 interface MonitoringData {
   power: {
@@ -262,32 +263,8 @@ export function LiveMonitoring({ initialData }: { initialData: MonitoringData | 
         {weather ? (
           <div className="space-y-3">
             <div className="flex items-center gap-3">
-              <div className={`w-8 h-8 flex-none ${(() => {
-                const now = new Date();
-                const sunrise = data.sunTimes ? new Date(data.sunTimes.sunrise) : null;
-                const sunset = data.sunTimes ? new Date(data.sunTimes.sunset) : null;
-                const isDay = sunrise && sunset ? now >= sunrise && now < sunset : true;
-                return isDay ? "text-amber-400" : "text-sky-300";
-              })()}`}>
-                {(() => {
-                  const now = new Date();
-                  const sunrise = data.sunTimes ? new Date(data.sunTimes.sunrise) : null;
-                  const sunset = data.sunTimes ? new Date(data.sunTimes.sunset) : null;
-                  const isDay = sunrise && sunset ? now >= sunrise && now < sunset : true;
-                  if (isDay) {
-                    return (
-                      <svg viewBox="0 0 24 24" className="w-full h-full" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round">
-                        <circle cx="12" cy="12" r="4" />
-                        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
-                      </svg>
-                    );
-                  }
-                  return (
-                    <svg viewBox="0 0 24 24" className="w-full h-full" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round">
-                      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-                    </svg>
-                  );
-                })()}
+              <div className="text-amber-400 w-8 h-8 flex-none">
+                <WeatherIcon code={weather.weatherCode} />
               </div>
               <div className="flex items-baseline gap-1">
                 <span className="font-narrow font-bold text-3xl text-paper">{weather.temp.toFixed(0)}</span>
