@@ -1,5 +1,6 @@
 import { auth, signIn } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import Image from "next/image";
 
 export default async function LoginPage({
   searchParams,
@@ -14,13 +15,13 @@ export default async function LoginPage({
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <svg
-            viewBox="0 0 24 24"
-            className="w-10 h-10 stroke-iron fill-none mx-auto mb-4"
-            strokeWidth={1.5}
-          >
-            <path d="M2 20h20M4 20V9l8-5 8 5v11M9 20v-6h6v6" />
-          </svg>
+          <Image
+            src="/logo-nav.png"
+            alt="The Hangar"
+            width={48}
+            height={48}
+            className="mx-auto mb-4 rounded"
+          />
           <h1 className="font-narrow font-bold uppercase text-2xl tracking-tight text-paper">
             The Hangar
           </h1>

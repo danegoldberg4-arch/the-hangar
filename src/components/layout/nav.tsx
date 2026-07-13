@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { auth, signOut } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -18,14 +19,13 @@ export async function Nav() {
     <header className="sticky top-0 z-50 border-b border-line bg-steel w-full max-w-full overflow-hidden">
       <div className="max-w-[1180px] mx-auto px-3 sm:px-8 flex items-center justify-between h-14 gap-2">
         <Link href="/" className="flex items-center gap-2 group flex-none">
-          <svg
-            viewBox="0 0 24 24"
-            className="w-4 h-4 stroke-iron fill-none"
-            strokeWidth={1.5}
-            aria-hidden="true"
-          >
-            <path d="M2 20h20M4 20V9l8-5 8 5v11M9 20v-6h6v6" />
-          </svg>
+          <Image
+            src="/logo-nav.png"
+            alt="The Hangar"
+            width={24}
+            height={24}
+            className="rounded"
+          />
           <span className="font-narrow font-bold uppercase tracking-[0.15em] text-[0.65rem] sm:text-xs text-paper group-hover:text-iron-lt transition-colors hidden sm:inline">
             The Hangar
           </span>
