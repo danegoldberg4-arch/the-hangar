@@ -1,3 +1,5 @@
+import { HangarBrand } from "@/components/brand/hangar-brand";
+
 const systems = [
   {
     name: "Power",
@@ -106,13 +108,7 @@ export default function HandbookPage() {
         <div className="absolute inset-0 opacity-20 bg-gradient-to-br from-forest via-transparent to-iron/30" />
         <div className="relative max-w-[1180px] mx-auto">
           <div className="flex items-center gap-3 mb-4">
-            <svg
-              viewBox="0 0 24 24"
-              className="w-6 h-6 stroke-galv fill-none"
-              strokeWidth={1.5}
-            >
-              <path d="M2 20h20M4 20V9l8-5 8 5v11M9 20v-6h6v6" />
-            </svg>
+            <HangarBrand variant="app-icon" alt="" className="size-8" />
             <span className="font-narrow font-bold uppercase tracking-[0.18em] text-sm text-paper">
               Protohouse No. V
             </span>
