@@ -1,0 +1,9 @@
+# The relay is tested with starlink-grpc-tools v1.2.5 checked out at
+# /opt/starlink-grpc-tools. Clone that exact tag from:
+# https://github.com/sparky8512/starlink-grpc-tools/tree/v1.2.5
+#
+# v1.2.5 recommends yagrc 1.1.3 or newer for current reflection support.
+grpcio>=1.12.0
+protobuf>=3.6.0
+yagrc>=1.1.3
+typing-extensions>=4.3.0

@@ -1,12 +1,17 @@
 import { prisma } from "@/lib/prisma";
 import {
-  fetchWeatherObservation,
   fetchFireDanger,
   fetchWeatherWarnings,
   getLatestFireDanger,
 } from "@/lib/integrations/weather";
 import { getLatestPower, fetchPowerData } from "@/lib/integrations/selectlive";
 import { fetchSunTimes, fetchCurrentWeather, getWeatherLabel } from "@/lib/integrations/forecast";
+import {
+  FRESHNESS_THRESHOLDS,
+  freshnessLabel,
+  storedObservationMeta,
+  unavailableMeta,
+} from "@/lib/integrations/freshness";
 import { WeatherIcon } from "@/components/weather/weather-icon";
 
 const fireDangerConfig: Record<string, { label: string; color: string; bg: string; dot: string }> = {
@@ -27,39 +32,42 @@ function windDirToText(deg: number): string {
   return dirs[Math.round(deg / 22.5) % 16];
 }
 
-const STALE_THRESHOLD_MIN = 15;
-
 export async function MonitoringPanel() {
-  const now = new Date();
-  const [existingWeather, existingFdr, existingPower, starlink] = await Promise.all([
-    prisma.weatherData.findFirst({ orderBy: { recordedAt: "desc" } }),
-    prisma.fireDanger.findFirst({ orderBy: { recordedAt: "desc" }, where: { district: "Illawarra/Shoalhaven" } }),
+  const [existingFdr, existingPower, starlink] = await Promise.all([
+    getLatestFireDanger(),
     getLatestPower(),
-    prisma.starlinkStatus.findFirst({ orderBy: { recordedAt: "desc" } }),
+    prisma.starlinkStatus.findFirst({
+      where: { sourceTimestampTrusted: true },
+      orderBy: { observedAt: "desc" },
+    }),
   ]);
 
-  const weatherStale =
-    !existingWeather ||
-    (now.getTime() - existingWeather.recordedAt.getTime()) / 60000 > STALE_THRESHOLD_MIN;
-  const fdrStale =
-    !existingFdr ||
-    (now.getTime() - existingFdr.recordedAt.getTime()) / 60000 > 60;
-  const powerStale =
-    !existingPower ||
-    (now.getTime() - existingPower.timestamp * 1000) / 60000 > STALE_THRESHOLD_MIN;
-
-  const [, freshFdr, warnings, freshPower, sunTimes, currentWeather] = await Promise.all([
-    weatherStale ? fetchWeatherObservation() : Promise.resolve(null),
-    fdrStale ? fetchFireDanger() : Promise.resolve(null),
+  const [freshFdr, warningResult, freshPower, sunTimes, currentWeather] = await Promise.all([
+    existingFdr?.freshness !== "live" ? fetchFireDanger() : Promise.resolve(null),
     fetchWeatherWarnings(),
-    powerStale ? fetchPowerData() : Promise.resolve(null),
+    existingPower?.freshness !== "live" ? fetchPowerData() : Promise.resolve(null),
     fetchSunTimes(),
     fetchCurrentWeather(),
   ]);
 
-  const fireDanger = freshFdr || (await getLatestFireDanger());
-  const power = freshPower || existingPower;
+  const warnings = warningResult ?? [];
+  const fireDanger = freshFdr ?? existingFdr;
+  const power = freshPower ?? existingPower;
+  const generatorRunning = power?.freshness === "live" && power.genRunning;
   const fdr = fireDanger ? fireDangerConfig[fireDanger.dangerToday] || fireDangerConfig.NONE : null;
+  const starlinkFreshness = starlink
+    ? storedObservationMeta(
+        starlink.observedAt,
+        FRESHNESS_THRESHOLDS.starlink,
+        starlink.sourceTimestampTrusted
+      )
+    : unavailableMeta();
+  const starlinkState =
+    starlinkFreshness.freshness === "live"
+      ? starlink?.connected
+        ? "online"
+        : "offline"
+      : starlinkFreshness.freshness;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -67,11 +75,11 @@ export async function MonitoringPanel() {
       <div className="card-surface p-4 sm:p-5 fade-in">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <span className={`w-1.5 h-1.5 rounded-full bg-amber-400 ${power && !power.stale ? "glow-dot text-amber-400" : ""}`} />
+            <span className={`w-1.5 h-1.5 rounded-full ${power?.freshness === "live" ? "bg-amber-400 glow-dot text-amber-400" : "bg-galv-dim"}`} />
             <h3 className="font-narrow uppercase tracking-wider text-xs font-bold text-galv">Power</h3>
           </div>
-          <span className={`font-narrow uppercase tracking-wider text-[0.55rem] ${power?.stale ? "text-galv-dim" : "text-green-400"}`}>
-            {power ? (power.stale ? "stale" : "live") : "—"}
+          <span className={`font-narrow uppercase tracking-wider text-[0.55rem] ${power?.freshness === "live" ? "text-green-400" : "text-galv-dim"}`}>
+            {freshnessLabel(power ?? unavailableMeta())}
           </span>
         </div>
         {power ? (
@@ -97,7 +105,7 @@ export async function MonitoringPanel() {
           </div>
         ) : (
           <p className="text-xs text-galv-dim leading-relaxed">
-            Set <code className="text-iron text-[0.7rem] bg-steel-3 px-1 rounded">SELECT_LIVE_*</code> env vars to connect.
+            Power telemetry is unavailable.
           </p>
         )}
       </div>
@@ -106,27 +114,33 @@ export async function MonitoringPanel() {
       <div className="card-surface p-4 sm:p-5 fade-in">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <span className={`w-1.5 h-1.5 rounded-full ${power?.genRunning ? "bg-amber-400 glow-dot text-amber-400" : "bg-galv-dim"}`} />
+            <span className={`w-1.5 h-1.5 rounded-full ${generatorRunning ? "bg-amber-400 glow-dot text-amber-400" : "bg-galv-dim"}`} />
             <h3 className="font-narrow uppercase tracking-wider text-xs font-bold text-galv">Generator</h3>
           </div>
-          <span className={`font-narrow uppercase tracking-wider text-[0.55rem] ${power?.genRunning ? "text-amber-400" : "text-galv-dim"}`}>
-            {power ? (power.genRunning ? "running" : "standby") : "—"}
+          <span className={`font-narrow uppercase tracking-wider text-[0.55rem] ${power?.freshness === "live" && power.genRunning ? "text-amber-400" : "text-galv-dim"}`}>
+            {power ? (power.freshness === "live" ? (power.genRunning ? "running" : "standby") : "stale data") : "unavailable"}
           </span>
         </div>
         {power ? (
           <div className="space-y-3">
             <div className="flex items-center gap-3">
-              <div className={`flex items-center justify-center w-12 h-12 rounded-full ${power.genRunning ? "bg-amber-950/40 border border-amber-700/40" : "bg-steel-3 border border-line"}`}>
-                <svg viewBox="0 0 24 24" className={`w-6 h-6 ${power.genRunning ? "text-amber-400" : "text-galv-dim"}`} fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round">
+              <div className={`flex items-center justify-center w-12 h-12 rounded-full ${generatorRunning ? "bg-amber-950/40 border border-amber-700/40" : "bg-steel-3 border border-line"}`}>
+                <svg viewBox="0 0 24 24" className={`w-6 h-6 ${generatorRunning ? "text-amber-400" : "text-galv-dim"}`} fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round">
                   <rect x="3" y="6" width="18" height="12" rx="2" />
                   <path d="M7 10v4M11 10v4M15 10v4M19 10v4" />
                 </svg>
               </div>
-              <div className={`font-narrow font-bold text-xl ${power.genRunning ? "text-amber-400" : "text-galv"}`}>
-                {power.genRunning ? "Running" : "Standby"}
+              <div className={`font-narrow font-bold text-xl ${generatorRunning ? "text-amber-400" : "text-galv"}`}>
+                {power.freshness === "live"
+                  ? power.genRunning
+                    ? "Running"
+                    : "Standby"
+                  : power.genRunning
+                    ? "Last report: on"
+                    : "Last report: off"}
               </div>
             </div>
-            {power.genRunning && (
+            {generatorRunning && (
               <>
                 <div className="h-px bg-line" />
                 <div className="flex items-center-baseline gap-1">
@@ -147,11 +161,11 @@ export async function MonitoringPanel() {
       <div className="card-surface p-4 sm:p-5 fade-in">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-sky-400 glow-dot text-sky-400" />
+            <span className={`w-1.5 h-1.5 rounded-full ${currentWeather?.freshness === "live" ? "bg-sky-400 glow-dot text-sky-400" : "bg-galv-dim"}`} />
             <h3 className="font-narrow uppercase tracking-wider text-xs font-bold text-galv">Weather</h3>
           </div>
-          <span className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">
-            Kangaroo Valley
+          <span className={`font-narrow uppercase tracking-wider text-[0.55rem] ${currentWeather?.freshness === "live" ? "text-green-400" : "text-galv-dim"}`}>
+            {freshnessLabel(currentWeather ?? unavailableMeta())}
           </span>
         </div>
         {currentWeather ? (
@@ -210,7 +224,7 @@ export async function MonitoringPanel() {
             )}
           </div>
         ) : (
-          <p className="text-xs text-galv-dim">Fetching from BOM...</p>
+          <p className="text-xs text-galv-dim">Weather observations are unavailable.</p>
         )}
       </div>
 
@@ -218,10 +232,12 @@ export async function MonitoringPanel() {
       <div className="card-surface p-4 sm:p-5 fade-in">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <span className={`w-1.5 h-1.5 rounded-full ${fdr?.dot || "bg-galv-dim"} glow-dot`} />
+            <span className={`w-1.5 h-1.5 rounded-full ${fireDanger?.freshness === "live" ? `${fdr?.dot || "bg-galv-dim"} glow-dot` : "bg-galv-dim"}`} />
             <h3 className="font-narrow uppercase tracking-wider text-xs font-bold text-galv">Fire Danger</h3>
           </div>
-          <span className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">Illawarra/Shoalhaven</span>
+          <span className={`font-narrow uppercase tracking-wider text-[0.55rem] ${fireDanger?.freshness === "live" ? "text-green-400" : "text-galv-dim"}`}>
+            {freshnessLabel(fireDanger ?? unavailableMeta())}
+          </span>
         </div>
         {fdr && fireDanger ? (
           <div className="space-y-3">
@@ -229,11 +245,15 @@ export async function MonitoringPanel() {
               <div className={`font-narrow font-bold text-2xl ${fdr.color}`}>
                 {fdr.label}
               </div>
-              <div className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim mt-0.5">Today</div>
+              <div className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim mt-0.5">
+                {fireDanger.freshness === "live" ? "Today" : "Last report"}
+              </div>
             </div>
             <div className="h-px bg-line" />
             <div className="flex items-center justify-between">
-              <span className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">Tomorrow</span>
+              <span className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">
+                {fireDanger.freshness === "live" ? "Tomorrow" : "Next day in report"}
+              </span>
               <span className={`font-narrow uppercase tracking-wider text-xs font-bold ${fireDangerConfig[fireDanger.dangerTomorrow]?.color || "text-galv"}`}>
                 {fireDangerConfig[fireDanger.dangerTomorrow]?.label || fireDanger.dangerTomorrow}
               </span>
@@ -241,12 +261,14 @@ export async function MonitoringPanel() {
             {fireDanger.fireBanToday && (
               <div className="flex items-center gap-2 text-red-400">
                 <span className="w-1 h-1 rounded-full bg-red-400" />
-                <span className="font-narrow uppercase tracking-wider text-[0.6rem]">Total Fire Ban Today</span>
+                <span className="font-narrow uppercase tracking-wider text-[0.6rem]">
+                  {fireDanger.freshness === "live" ? "Total Fire Ban Today" : "Last report indicated a total fire ban"}
+                </span>
               </div>
             )}
           </div>
         ) : (
-          <p className="text-xs text-galv-dim">Fetching from RFS...</p>
+          <p className="text-xs text-galv-dim">Fire danger data is unavailable.</p>
         )}
       </div>
 
@@ -275,15 +297,25 @@ export async function MonitoringPanel() {
         </div>
       )}
 
+      {warningResult === null && (
+        <div className="card-surface p-4 sm:p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="w-1.5 h-1.5 rounded-full bg-galv-dim" />
+            <h3 className="font-narrow uppercase tracking-wider text-xs font-bold text-galv">Warnings</h3>
+          </div>
+          <p className="text-xs text-galv-dim">Warning feed unavailable.</p>
+        </div>
+      )}
+
       {/* Starlink */}
       <div className={`card-surface p-4 sm:p-5 fade-in ${warnings.length === 0 ? "sm:col-span-1" : ""}`}>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <span className={`w-1.5 h-1.5 rounded-full ${starlink?.connected ? "bg-green-400 glow-dot text-green-400" : "bg-galv-dim"}`} />
+            <span className={`w-1.5 h-1.5 rounded-full ${starlinkState === "online" ? "bg-green-400 glow-dot text-green-400" : "bg-galv-dim"}`} />
             <h3 className="font-narrow uppercase tracking-wider text-xs font-bold text-galv">Starlink</h3>
           </div>
-          <span className={`font-narrow uppercase tracking-wider text-[0.55rem] ${starlink?.connected ? "text-green-400" : "text-galv-dim"}`}>
-            {starlink?.connected ? "online" : "offline"}
+          <span className={`font-narrow uppercase tracking-wider text-[0.55rem] ${starlinkState === "online" ? "text-green-400" : "text-galv-dim"}`}>
+            {starlinkFreshness.freshness === "live" ? starlinkState : freshnessLabel(starlinkFreshness)}
           </span>
         </div>
         {starlink ? (
@@ -306,7 +338,7 @@ export async function MonitoringPanel() {
           </div>
         ) : (
           <p className="text-xs text-galv-dim leading-relaxed">
-            Waiting for Pi relay. Set <code className="text-iron text-[0.7rem] bg-steel-3 px-1 rounded">INGEST_TOKEN</code> in .env.
+            Starlink telemetry is unavailable.
           </p>
         )}
       </div>
