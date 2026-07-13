@@ -1,3 +1,11 @@
+import {
+  FRESHNESS_THRESHOLDS,
+  observationMeta,
+  type ObservationMeta,
+} from "./freshness";
+import { fetchWithTimeout } from "./http";
+import { openMeteoObservedAt } from "./open-meteo";
+
 export interface ForecastDay {
   date: string;
   maxTemp: number;
@@ -15,15 +23,115 @@ export interface CurrentWeather {
   precipitation: number;
 }
 
-export interface WeatherForecast {
+export interface WeatherForecast extends ObservationMeta {
   current: CurrentWeather;
   daily: ForecastDay[];
   sunrise: string;
   sunset: string;
 }
 
+export interface CurrentConditions extends CurrentWeather, ObservationMeta {
+  weatherCode: number;
+}
+
+export interface SunTimes extends ObservationMeta {
+  sunrise: string;
+  sunset: string;
+}
+
 const LAT = -34.73;
 const LON = 150.48;
+
+type JsonObject = Record<string, unknown>;
+
+function isObject(value: unknown): value is JsonObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function finiteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function validLocalDateTime(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(value)
+  );
+}
+
+function currentWeatherFrom(value: unknown): CurrentWeather | null {
+  if (!isObject(value)) return null;
+  const current = value;
+  if (
+    !finiteNumber(current.temperature_2m) ||
+    !finiteNumber(current.relative_humidity_2m) ||
+    !finiteNumber(current.wind_speed_10m) ||
+    !finiteNumber(current.wind_direction_10m) ||
+    !finiteNumber(current.precipitation) ||
+    current.relative_humidity_2m < 0 ||
+    current.relative_humidity_2m > 100 ||
+    current.wind_speed_10m < 0 ||
+    current.wind_direction_10m < 0 ||
+    current.wind_direction_10m > 360 ||
+    current.precipitation < 0
+  ) {
+    return null;
+  }
+
+  return {
+    temp: current.temperature_2m,
+    humidity: current.relative_humidity_2m,
+    windSpeed: current.wind_speed_10m,
+    windDir: current.wind_direction_10m,
+    precipitation: current.precipitation,
+  };
+}
+
+function numericArray(value: unknown, length: number): number[] | null {
+  return Array.isArray(value) &&
+    value.length === length &&
+    value.every(finiteNumber)
+    ? value
+    : null;
+}
+
+export function parseForecastDays(value: unknown): ForecastDay[] | null {
+  if (!isObject(value) || !Array.isArray(value.time) || value.time.length === 0) {
+    return null;
+  }
+
+  const dates = value.time;
+  const length = dates.length;
+  const maxTemps = numericArray(value.temperature_2m_max, length);
+  const minTemps = numericArray(value.temperature_2m_min, length);
+  const precipitation = numericArray(value.precipitation_sum, length);
+  const windMax = numericArray(value.wind_speed_10m_max, length);
+  const weatherCodes = numericArray(value.weather_code, length);
+  if (
+    !dates.every((date) => typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) ||
+    !maxTemps ||
+    !minTemps ||
+    !precipitation ||
+    !windMax ||
+    !weatherCodes ||
+    precipitation.some((amount) => amount < 0) ||
+    windMax.some((speed) => speed < 0) ||
+    weatherCodes.some(
+      (code) => !Number.isInteger(code) || code < 0 || code > 99
+    )
+  ) {
+    return null;
+  }
+
+  return dates.map((date, index) => ({
+    date,
+    maxTemp: maxTemps[index],
+    minTemp: minTemps[index],
+    precipitation: precipitation[index],
+    windMax: windMax[index],
+    weatherCode: weatherCodes[index],
+  }));
+}
 
 const WMO_CODES: Record<number, { label: string; icon: string }> = {
   0: { label: "Clear", icon: "sun" },
@@ -53,42 +161,68 @@ export function getWeatherLabel(code: number): string {
   return WMO_CODES[code]?.label || "—";
 }
 
-export async function fetchSunTimes(): Promise<{ sunrise: string; sunset: string } | null> {
+export async function fetchSunTimes(): Promise<SunTimes | null> {
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&daily=sunrise,sunset&timezone=Australia/Sydney&forecast_days=1`;
-    const res = await fetch(url, { next: { revalidate: 0 } });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return { sunrise: data.daily.sunrise[0], sunset: data.daily.sunset[0] };
-  } catch {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&daily=sunrise,sunset&current=temperature_2m&timezone=Australia/Sydney&forecast_days=1`;
+    const res = await fetchWithTimeout(url, { next: { revalidate: 0 } });
+    if (!res.ok) {
+      console.error(`[forecast] Sun times failed: HTTP ${res.status}`);
+      return null;
+    }
+    const data: unknown = await res.json();
+    if (!isObject(data) || !isObject(data.daily) || !isObject(data.current)) return null;
+    const sunrise = Array.isArray(data.daily.sunrise) ? data.daily.sunrise[0] : null;
+    const sunset = Array.isArray(data.daily.sunset) ? data.daily.sunset[0] : null;
+    if (!validLocalDateTime(sunrise) || !validLocalDateTime(sunset)) return null;
+    const observedAt = openMeteoObservedAt(data.current.time, data.utc_offset_seconds);
+    if (!observedAt) {
+      console.error("[forecast] Sun times response had no valid source timestamp");
+      return null;
+    }
+    return {
+      sunrise,
+      sunset,
+      ...observationMeta(observedAt, FRESHNESS_THRESHOLDS.forecast),
+    };
+  } catch (error) {
+    console.error("[forecast] Sun times error:", error);
     return null;
   }
-}
-
-export interface CurrentConditions {
-  temp: number;
-  humidity: number;
-  windSpeed: number;
-  windDir: number;
-  precipitation: number;
-  weatherCode: number;
 }
 
 export async function fetchCurrentWeather(): Promise<CurrentConditions | null> {
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,precipitation,weather_code&timezone=Australia/Sydney`;
-    const res = await fetch(url, { next: { revalidate: 0 } });
-    if (!res.ok) return null;
-    const data = await res.json();
+    const res = await fetchWithTimeout(url, { next: { revalidate: 0 } });
+    if (!res.ok) {
+      console.error(`[forecast] Current conditions failed: HTTP ${res.status}`);
+      return null;
+    }
+    const data: unknown = await res.json();
+    if (!isObject(data) || !isObject(data.current)) return null;
+    const current = currentWeatherFrom(data.current);
+    const weatherCode = data.current.weather_code;
+    if (
+      !current ||
+      !finiteNumber(weatherCode) ||
+      !Number.isInteger(weatherCode) ||
+      weatherCode < 0 ||
+      weatherCode > 99
+    ) {
+      return null;
+    }
+    const observedAt = openMeteoObservedAt(data.current.time, data.utc_offset_seconds);
+    if (!observedAt) {
+      console.error("[forecast] Current conditions had no valid source timestamp");
+      return null;
+    }
     return {
-      temp: data.current.temperature_2m,
-      humidity: data.current.relative_humidity_2m,
-      windSpeed: data.current.wind_speed_10m,
-      windDir: data.current.wind_direction_10m,
-      precipitation: data.current.precipitation,
-      weatherCode: data.current.weather_code,
+      ...current,
+      weatherCode,
+      ...observationMeta(observedAt, FRESHNESS_THRESHOLDS.weather),
     };
-  } catch {
+  } catch (error) {
+    console.error("[forecast] Current conditions error:", error);
     return null;
   }
 }
@@ -96,33 +230,36 @@ export async function fetchCurrentWeather(): Promise<CurrentConditions | null> {
 export async function fetchForecast(): Promise<WeatherForecast | null> {
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,sunrise,sunset&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,precipitation&timezone=Australia/Sydney&forecast_days=5`;
+    const res = await fetchWithTimeout(url, { next: { revalidate: 0 } });
+    if (!res.ok) {
+      console.error(`[forecast] Forecast failed: HTTP ${res.status}`);
+      return null;
+    }
 
-    const res = await fetch(url, { next: { revalidate: 0 } });
+    const data: unknown = await res.json();
+    if (!isObject(data) || !isObject(data.current) || !isObject(data.daily)) return null;
+    const daily = parseForecastDays(data.daily);
+    const current = currentWeatherFrom(data.current);
+    const sunrise = Array.isArray(data.daily.sunrise) ? data.daily.sunrise[0] : null;
+    const sunset = Array.isArray(data.daily.sunset) ? data.daily.sunset[0] : null;
+    if (!daily || !current || !validLocalDateTime(sunrise) || !validLocalDateTime(sunset)) {
+      return null;
+    }
+    const observedAt = openMeteoObservedAt(data.current.time, data.utc_offset_seconds);
+    if (!observedAt) {
+      console.error("[forecast] Forecast response had no valid source timestamp");
+      return null;
+    }
 
-    if (!res.ok) return null;
-
-    const data = await res.json();
-
-    const daily: ForecastDay[] = data.daily.time.map((date: string, i: number) => ({
-      date,
-      maxTemp: data.daily.temperature_2m_max[i],
-      minTemp: data.daily.temperature_2m_min[i],
-      precipitation: data.daily.precipitation_sum[i],
-      windMax: data.daily.wind_speed_10m_max[i],
-      weatherCode: data.daily.weather_code[i],
-    }));
-
-    const current: CurrentWeather = {
-      temp: data.current.temperature_2m,
-      humidity: data.current.relative_humidity_2m,
-      windSpeed: data.current.wind_speed_10m,
-      windDir: data.current.wind_direction_10m,
-      precipitation: data.current.precipitation,
+    return {
+      current,
+      daily,
+      sunrise,
+      sunset,
+      ...observationMeta(observedAt, FRESHNESS_THRESHOLDS.forecast),
     };
-
-    return { current, daily, sunrise: data.daily.sunrise[0], sunset: data.daily.sunset[0] };
-  } catch (err) {
-    console.error("[forecast] fetch error:", err);
+  } catch (error) {
+    console.error("[forecast] Fetch error:", error);
     return null;
   }
 }

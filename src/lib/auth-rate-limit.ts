@@ -20,7 +20,7 @@ type RateLimitRow = {
 
 export type AuthRateLimitDecision = {
   allowed: boolean;
-  keyHashes: string[];
+  resetKeyHashes: string[];
   retryAfterSeconds: number;
 };
 
@@ -73,7 +73,13 @@ async function consumeAuthRateLimits({
   });
 
   const rows = await prisma.$transaction(async (tx) => {
-    const consumed: Array<RateLimitRow & { limit: number; keyHash: string }> = [];
+    const consumed: Array<
+      RateLimitRow & {
+        dimension: AuthRateLimitDimension;
+        limit: number;
+        keyHash: string;
+      }
+    > = [];
 
     for (const entry of entries) {
       const [row] = await tx.$queryRaw<RateLimitRow[]>`
@@ -114,7 +120,12 @@ async function consumeAuthRateLimits({
       `;
 
       if (!row) throw new Error("Auth rate limit update returned no row");
-      consumed.push({ ...row, limit: entry.limit, keyHash: entry.keyHash });
+      consumed.push({
+        ...row,
+        dimension: entry.dimension,
+        limit: entry.limit,
+        keyHash: entry.keyHash,
+      });
     }
 
     await tx.$executeRaw`
@@ -137,7 +148,9 @@ async function consumeAuthRateLimits({
   const blocked = rows.filter((row) => row.attempts > row.limit);
   return {
     allowed: blocked.length === 0,
-    keyHashes: rows.map((row) => row.keyHash),
+    resetKeyHashes: rows
+      .filter((row) => row.dimension === "email")
+      .map((row) => row.keyHash),
     retryAfterSeconds:
       blocked.length === 0
         ? 0

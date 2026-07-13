@@ -62,12 +62,17 @@ model MaintenanceLog {
 
 model SystemStatus {
   id        String   @id @default(cuid())
+  sourceId  String?  @unique
+  contentHash String?
   system    String
   status    String
   data      String   @default("{}")
+  observedAt DateTime @default(now())
+  sourceTimestampTrusted Boolean @default(false)
   recordedAt DateTime @default(now())
 
   @@index([system, recordedAt])
+  @@index([system, observedAt])
 }
 
 model Alert {
@@ -92,19 +97,29 @@ model WeatherData {
   rainTrace      String?
   cloud          String?
   pressure       Float?
+  observedAt     DateTime @default(now())
+  sourceTimestampTrusted Boolean @default(false)
   recordedAt     DateTime @default(now())
 
+  @@unique([station, observedAt])
   @@index([station, recordedAt])
+  @@index([station, observedAt])
 }
 
 model FireDanger {
   id              String   @id @default(cuid())
   district        String
+  reportDate      String?
   dangerToday     String
   dangerTomorrow  String
   fireBanToday    Boolean
   fireBanTomorrow Boolean
+  observedAt      DateTime @default(now())
+  sourceTimestampTrusted Boolean @default(false)
   recordedAt      DateTime @default(now())
+
+  @@unique([district, reportDate])
+  @@index([district, observedAt])
 }
 
 model PowerReading {
@@ -115,28 +130,39 @@ model PowerReading {
   loadW           Float
   gridW           Float
   genStatus       Int
+  faultCode       Int      @default(0)
   solarKwhToday   Float
   loadKwhToday    Float
   batteryInKwhToday  Float
   batteryOutKwhToday Float
   source          String   @default("select.live")
+  observedAt      DateTime @default(now())
+  sourceTimestampTrusted Boolean @default(false)
   recordedAt      DateTime @default(now())
 
+  @@unique([source, observedAt])
   @@index([recordedAt])
+  @@index([observedAt])
 }
 
 model StarlinkStatus {
   id              String   @id @default(cuid())
+  sourceId        String?  @unique
+  contentHash     String?
   connected       Boolean
+  state           String?
   obstructionAvg  Float?
   uptimeSeconds   Int?
   downlinkThroughputBps Float?
   uplinkThroughputBps   Float?
   latencyMs       Float?
   firmwareVersion String?
+  observedAt      DateTime @default(now())
+  sourceTimestampTrusted Boolean @default(false)
   recordedAt      DateTime @default(now())
 
   @@index([recordedAt])
+  @@index([observedAt])
 }
 
 model ReminderLog {

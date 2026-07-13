@@ -1,3 +1,5 @@
+// These helpers only parse legacy stored configuration. No runtime caller may
+// execute a control decision until an authenticated edge agent is available.
 export interface PlugAutomation {
   enabled: boolean;
   solarThresholdW: number;
@@ -21,8 +23,8 @@ export function parseAutomation(data: string): PlugAutomation {
   }
 }
 
-export function serializeAutomation(a: PlugAutomation): string {
-  return JSON.stringify(a);
+export function serializeAutomation(automation: PlugAutomation): string {
+  return JSON.stringify(automation);
 }
 
 export function shouldPlugTurnOn(
@@ -30,14 +32,16 @@ export function shouldPlugTurnOn(
   solarW: number,
   batterySoc: number
 ): boolean {
-  if (!automation.enabled) return false;
-  return solarW >= automation.solarThresholdW && batterySoc >= automation.batteryThresholdPct;
+  return (
+    automation.enabled &&
+    solarW >= automation.solarThresholdW &&
+    batterySoc >= automation.batteryThresholdPct
+  );
 }
 
 export function shouldPlugTurnOff(
   automation: PlugAutomation,
   batterySoc: number
 ): boolean {
-  if (!automation.enabled) return false;
-  return batterySoc < automation.turnOffWhenBatteryBelow;
+  return automation.enabled && batterySoc < automation.turnOffWhenBatteryBelow;
 }

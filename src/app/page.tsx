@@ -80,10 +80,10 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {/* Live Monitoring */}
+      {/* System Monitoring */}
       <div className="mb-8">
         <h2 className="font-narrow uppercase tracking-[0.15em] text-sm font-bold text-galv-dim mb-4">
-          Live Monitoring
+          System Monitoring
         </h2>
         <Suspense fallback={<div className="card-surface p-4 sm:p-5 text-sm text-galv-dim">Loading monitoring data...</div>}>
           <MonitoringPanel />

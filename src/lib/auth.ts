@@ -51,7 +51,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!valid) return null;
 
         try {
-          await resetAuthRateLimits(rateLimit.keyHashes);
+          await resetAuthRateLimits(rateLimit.resetKeyHashes);
         } catch (error) {
           console.error("[auth] login rate limit reset failed", error);
           return null;
