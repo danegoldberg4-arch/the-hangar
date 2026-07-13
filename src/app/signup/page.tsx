@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import Image from "next/image";
 
 export default function SignupPage() {
   const [name, setName] = useState("");
@@ -47,13 +46,7 @@ export default function SignupPage() {
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-sm">
         <div className="text-center mb-6">
-          <Image
-            src="/logo-nav.png"
-            alt="The Hangar"
-            width={48}
-            height={48}
-            className="mx-auto mb-3 rounded"
-          />
+          <img src="/hangar-emblem.svg" alt="The Hangar" className="w-16 h-16 mx-auto mb-3 rounded-2xl" />
           <h1 className="font-narrow font-bold uppercase text-2xl tracking-tight text-paper">
             The Hangar
           </h1>
