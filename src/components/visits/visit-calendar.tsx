@@ -37,7 +37,7 @@ async function fetchVisits(year: number, month: number, signal?: AbortSignal) {
   const from = formatDate(new Date(year, month, 1));
   const to = formatDate(new Date(year, month + 1, 0));
   const query = new URLSearchParams({ from, to });
-  const res = await fetch(`/api/visits?${query}`, { signal });
+  const res = await fetch(`/api/visits?${query}`, { signal, credentials: "same-origin" });
   if (!res.ok) throw new Error(await getApiError(res, "Could not load visits."));
   const data: unknown = await res.json();
   if (!Array.isArray(data)) throw new Error("The visit calendar returned an invalid response.");
@@ -218,12 +218,12 @@ export function VisitCalendar() {
       };
 
       const res = editingVisit
-        ? await fetch(`/api/visits/${editingVisit.id}`, {
+        ? await fetch(`/api/visits/${editingVisit.id}`, { credentials: "same-origin",
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
           })
-        : await fetch("/api/visits", {
+        : await fetch("/api/visits", { credentials: "same-origin",
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
@@ -252,7 +252,7 @@ export function VisitCalendar() {
     setVisitDeleting(visit.id, true);
     setActionError("");
     try {
-      const res = await fetch(`/api/visits/${visit.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/visits/${visit.id}`, { method: "DELETE", credentials: "same-origin" });
       if (!res.ok) throw new Error(await getApiError(res, "Could not delete the visit."));
       await loadVisits();
     } catch (deleteFailure) {

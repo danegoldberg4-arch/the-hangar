@@ -35,7 +35,7 @@ const categoryColors: Record<string, string> = {
 };
 
 async function fetchRestockItems(signal?: AbortSignal) {
-  const res = await fetch("/api/restock?includeResolved=true&resolvedLimit=20", {
+  const res = await fetch("/api/restock?includeResolved=true&resolvedLimit=20", { credentials: "same-origin",
     signal,
   });
   if (!res.ok) throw new Error(await getApiError(res, "Could not load the restock list."));
@@ -134,7 +134,7 @@ export function RestockBoard() {
     setMutationError("");
 
     try {
-      const res = await fetch("/api/restock", {
+      const res = await fetch("/api/restock", { credentials: "same-origin",
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, note, category }),
@@ -156,7 +156,7 @@ export function RestockBoard() {
     setItemPending(item.id, true);
     setMutationError("");
     try {
-      const res = await fetch(`/api/restock/${item.id}`, {
+      const res = await fetch(`/api/restock/${item.id}`, { credentials: "same-origin",
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
@@ -187,7 +187,7 @@ export function RestockBoard() {
     setItemPending(item.id, true);
     setMutationError("");
     try {
-      const res = await fetch(`/api/restock/${item.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/restock/${item.id}`, { credentials: "same-origin", method: "DELETE" });
       if (!res.ok) throw new Error(await getApiError(res, "Could not delete the item."));
       if (undoItem?.id === item.id) setUndoItem(null);
       await loadItems();
