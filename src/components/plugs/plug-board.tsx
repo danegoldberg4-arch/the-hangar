@@ -29,7 +29,7 @@ export function PlugBoard() {
 
   const loadPlugs = useCallback(async () => {
     try {
-      const response = await fetch("/api/plugs");
+      const response = await fetch("/api/plugs", { credentials: "same-origin", credentials: "same-origin" });
       if (!response.ok) {
         throw new Error(`Device inventory returned ${response.status}`);
       }
@@ -52,7 +52,7 @@ export function PlugBoard() {
     setSubmitting(true);
     setError("");
     try {
-      const response = await fetch("/api/plugs", {
+      const response = await fetch("/api/plugs", { credentials: "same-origin",
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, type, deviceId, room }),
@@ -78,7 +78,7 @@ export function PlugBoard() {
 
     setError("");
     try {
-      const response = await fetch(`/api/plugs/${id}`, { method: "DELETE" });
+      const response = await fetch(`/api/plugs/${id}`, { method: "DELETE", credentials: "same-origin" });
       if (!response.ok) {
         setError(await getApiError(response, "Failed to remove device."));
         return;
