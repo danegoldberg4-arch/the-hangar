@@ -157,7 +157,8 @@ a {
 
 /* Button press effect */
 button:active {
-  transform: scale(0.97);
+  transform: scale(0.98);
+  opacity: 0.9;
 }
 
 :where(a, button, input, select, textarea, summary):focus-visible {

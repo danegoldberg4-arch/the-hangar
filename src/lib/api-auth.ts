@@ -26,7 +26,7 @@ const noStoreHeaders = { "Cache-Control": "private, no-store" };
 export async function requireUser(): Promise<AccessResult> {
   const session = await auth();
 
-  if (!session?.user?.id) {
+  if (!session?.user?.email) {
     return {
       ok: false,
       response: NextResponse.json(
@@ -36,10 +36,20 @@ export async function requireUser(): Promise<AccessResult> {
     };
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { id: true, name: true, email: true, role: true },
-  });
+  // Try by ID first, fall back to email (handles migrated sessions)
+  let user = null;
+  if (session.user.id) {
+    user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true, name: true, email: true, role: true },
+    });
+  }
+  if (!user && session.user.email) {
+    user = await prisma.user.findUnique({
+      where: { email: session.user.email as string },
+      select: { id: true, name: true, email: true, role: true },
+    });
+  }
 
   if (!user) {
     return {
