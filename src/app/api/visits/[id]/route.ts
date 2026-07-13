@@ -1,6 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/api-auth";
+import {
+  apiError,
+  internalError,
+  readJsonObject,
+  validationError,
+} from "@/lib/api-response";
+import {
+  validateVisitDateOrder,
+  validateVisitUpdate,
+} from "@/lib/workflow-validation";
 
 export async function PATCH(
   request: NextRequest,
@@ -10,34 +20,56 @@ export async function PATCH(
   if (!access.ok) return access.response;
 
   const { id } = await ctx.params;
-  const existing = await prisma.visit.findUnique({
-    where: { id },
-    select: { userId: true },
-  });
+  const body = await readJsonObject(request);
+  if (!body.ok) return body.response;
 
-  if (!existing) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const parsed = validateVisitUpdate(body.value);
+  if (!parsed.ok) return validationError(parsed.errors);
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`
+        SELECT 1 AS "locked"
+        FROM pg_advisory_xact_lock(
+          hashtextextended(${`visit:${id}`}, 0)
+        )
+      `;
+
+      const existing = await tx.visit.findUnique({ where: { id } });
+      if (!existing) return { kind: "not_found" } as const;
+      if (
+        access.user.role !== "admin" &&
+        existing.userId !== access.user.id
+      ) {
+        return { kind: "forbidden" } as const;
+      }
+
+      const dateOrder = validateVisitDateOrder(
+        parsed.value.startDate ?? existing.startDate,
+        parsed.value.endDate ?? existing.endDate
+      );
+      if (!dateOrder.ok) {
+        return { kind: "invalid", errors: dateOrder.errors } as const;
+      }
+
+      const visit = await tx.visit.update({
+        where: { id },
+        data: parsed.value,
+      });
+      return { kind: "updated", visit } as const;
+    });
+
+    if (result.kind === "not_found") {
+      return apiError(404, "NOT_FOUND", "Visit not found.");
+    }
+    if (result.kind === "forbidden") {
+      return apiError(403, "FORBIDDEN", "You cannot edit this visit.");
+    }
+    if (result.kind === "invalid") return validationError(result.errors);
+    return NextResponse.json(result.visit);
+  } catch (error) {
+    return internalError("update visit", error);
   }
-
-  if (
-    access.user.role !== "admin" &&
-    existing.userId !== access.user.id
-  ) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const body = await request.json();
-  const { visitorName, startDate, endDate, notes, bringing } = body;
-
-  const data: Record<string, unknown> = {};
-  if (visitorName !== undefined) data.visitorName = visitorName.trim();
-  if (startDate !== undefined) data.startDate = new Date(startDate);
-  if (endDate !== undefined) data.endDate = new Date(endDate);
-  if (notes !== undefined) data.notes = notes.trim();
-  if (bringing !== undefined) data.bringing = bringing.trim();
-
-  const visit = await prisma.visit.update({ where: { id }, data });
-  return NextResponse.json(visit);
 }
 
 export async function DELETE(
@@ -48,22 +80,36 @@ export async function DELETE(
   if (!access.ok) return access.response;
 
   const { id } = await ctx.params;
-  const existing = await prisma.visit.findUnique({
-    where: { id },
-    select: { userId: true },
-  });
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`
+        SELECT 1 AS "locked"
+        FROM pg_advisory_xact_lock(
+          hashtextextended(${`visit:${id}`}, 0)
+        )
+      `;
 
-  if (!existing) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+      const existing = await tx.visit.findUnique({ where: { id } });
+      if (!existing) return "not_found" as const;
+      if (
+        access.user.role !== "admin" &&
+        existing.userId !== access.user.id
+      ) {
+        return "forbidden" as const;
+      }
+
+      await tx.visit.delete({ where: { id } });
+      return "deleted" as const;
+    });
+
+    if (result === "not_found") {
+      return apiError(404, "NOT_FOUND", "Visit not found.");
+    }
+    if (result === "forbidden") {
+      return apiError(403, "FORBIDDEN", "You cannot delete this visit.");
+    }
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return internalError("delete visit", error);
   }
-
-  if (
-    access.user.role !== "admin" &&
-    existing.userId !== access.user.id
-  ) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  await prisma.visit.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
 }

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
+import { getApiError } from "@/lib/api-client";
 
 interface Visit {
   id: string;
@@ -32,17 +33,30 @@ function parseDate(s: string): Date {
   return new Date(y, m - 1, d);
 }
 
+async function fetchVisits(year: number, month: number, signal?: AbortSignal) {
+  const from = formatDate(new Date(year, month, 1));
+  const to = formatDate(new Date(year, month + 1, 0));
+  const query = new URLSearchParams({ from, to });
+  const res = await fetch(`/api/visits?${query}`, { signal });
+  if (!res.ok) throw new Error(await getApiError(res, "Could not load visits."));
+  const data: unknown = await res.json();
+  if (!Array.isArray(data)) throw new Error("The visit calendar returned an invalid response.");
+  return data as Visit[];
+}
+
 export function VisitCalendar() {
   const { data: session } = useSession();
   const now = new Date();
   const [visits, setVisits] = useState<Visit[]>([]);
-  const [, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [actionError, setActionError] = useState("");
   const [currentMonth, setCurrentMonth] = useState(now.getMonth());
   const [currentYear, setCurrentYear] = useState(now.getFullYear());
   const [showForm, setShowForm] = useState(false);
   const [editingVisit, setEditingVisit] = useState<Visit | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [nowTime] = useState(now.getTime());
+  const [today] = useState(() => parseDate(formatDate(new Date())));
 
   const [visitorName, setVisitorName] = useState("");
   const [startDate, setStartDate] = useState(formatDate(now));
@@ -50,40 +64,115 @@ export function VisitCalendar() {
   const [notes, setNotes] = useState("");
   const [bringing, setBringing] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [deletingVisitIds, setDeletingVisitIds] = useState<Set<string>>(
+    () => new Set()
+  );
   const [error, setError] = useState("");
+  const loadToken = useRef<symbol | null>(null);
+  const loadController = useRef<AbortController | null>(null);
+  const visibleRangeKey = `${currentYear}-${currentMonth}`;
+  const visibleRange = useRef(visibleRangeKey);
 
   const loadVisits = useCallback(async () => {
+    const requestedRange = `${currentYear}-${currentMonth}`;
+    if (visibleRange.current !== requestedRange) return;
+
+    const token = Symbol("visit-load");
+    loadToken.current = token;
+    loadController.current?.abort();
+    const controller = new AbortController();
+    loadController.current = controller;
+    setLoading(true);
+    setLoadError("");
     try {
-      const res = await fetch("/api/visits");
-      if (res.ok) {
-        const data = await res.json();
-        setVisits(data);
+      const data = await fetchVisits(
+        currentYear,
+        currentMonth,
+        controller.signal
+      );
+      if (
+        loadToken.current !== token ||
+        visibleRange.current !== requestedRange
+      ) {
+        return;
       }
+      setVisits(data);
+    } catch (loadFailure) {
+      if (controller.signal.aborted || loadToken.current !== token) return;
+      setVisits([]);
+      setLoadError(loadFailure instanceof Error ? loadFailure.message : "Could not load visits.");
     } finally {
-      setLoading(false);
+      if (loadToken.current === token) {
+        loadToken.current = null;
+        loadController.current = null;
+        setLoading(false);
+      }
     }
-  }, []);
+  }, [currentMonth, currentYear, setLoadError, setLoading, setVisits]);
 
   useEffect(() => {
-    loadVisits();
-  }, [loadVisits]);
+    visibleRange.current = `${currentYear}-${currentMonth}`;
+    const token = Symbol("visit-range-load");
+    loadToken.current = token;
+    loadController.current?.abort();
+    const controller = new AbortController();
+    loadController.current = controller;
+    void fetchVisits(currentYear, currentMonth, controller.signal)
+      .then((data) => {
+        if (loadToken.current !== token) return;
+        setVisits(data);
+        setLoadError("");
+      })
+      .catch((loadFailure) => {
+        if (controller.signal.aborted || loadToken.current !== token) return;
+        setVisits([]);
+        setLoadError(
+          loadFailure instanceof Error ? loadFailure.message : "Could not load visits."
+        );
+      })
+      .finally(() => {
+        if (loadToken.current === token) {
+          loadToken.current = null;
+          loadController.current = null;
+          setLoading(false);
+        }
+      });
+    return () => {
+      loadToken.current = null;
+      loadController.current?.abort();
+      loadController.current = null;
+    };
+  }, [currentMonth, currentYear]);
+
+  function setVisitDeleting(id: string, deleting: boolean) {
+    setDeletingVisitIds((current) => {
+      const next = new Set(current);
+      if (deleting) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
 
   function prevMonth() {
-    if (currentMonth === 0) {
-      setCurrentMonth(11);
-      setCurrentYear(currentYear - 1);
-    } else {
-      setCurrentMonth(currentMonth - 1);
-    }
+    const previous = new Date(currentYear, currentMonth - 1, 1);
+    visibleRange.current = `${previous.getFullYear()}-${previous.getMonth()}`;
+    setLoading(true);
+    setLoadError("");
+    setCurrentMonth(previous.getMonth());
+    setCurrentYear(previous.getFullYear());
+    setSelectedDate(null);
+    setActionError("");
   }
 
   function nextMonth() {
-    if (currentMonth === 11) {
-      setCurrentMonth(0);
-      setCurrentYear(currentYear + 1);
-    } else {
-      setCurrentMonth(currentMonth + 1);
-    }
+    const next = new Date(currentYear, currentMonth + 1, 1);
+    visibleRange.current = `${next.getFullYear()}-${next.getMonth()}`;
+    setLoading(true);
+    setLoadError("");
+    setCurrentMonth(next.getMonth());
+    setCurrentYear(next.getFullYear());
+    setSelectedDate(null);
+    setActionError("");
   }
 
   function openForm(date?: string, visit?: Visit) {
@@ -102,6 +191,7 @@ export function VisitCalendar() {
       setNotes("");
       setBringing("");
     }
+    setError("");
     setShowForm(true);
   }
 
@@ -109,6 +199,10 @@ export function VisitCalendar() {
     e.preventDefault();
     if (!visitorName.trim()) {
       setError("Name is required");
+      return;
+    }
+    if (endDate < startDate) {
+      setError("Leaving date must be on or after arriving date.");
       return;
     }
     setSubmitting(true);
@@ -136,23 +230,41 @@ export function VisitCalendar() {
           });
 
       if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || "Failed to save");
+        setError(await getApiError(res, "Could not save the visit."));
         return;
       }
 
       setShowForm(false);
       setEditingVisit(null);
       await loadVisits();
+    } catch (saveFailure) {
+      setError(saveFailure instanceof Error ? saveFailure.message : "Could not save the visit.");
     } finally {
       setSubmitting(false);
     }
   }
 
-  async function deleteVisit(id: string) {
-    await fetch(`/api/visits/${id}`, { method: "DELETE" });
-    await loadVisits();
+  async function deleteVisit(visit: Visit) {
+    if (!window.confirm(`Delete the visit for ${visit.visitorName}? This cannot be undone.`)) {
+      return;
+    }
+
+    setVisitDeleting(visit.id, true);
+    setActionError("");
+    try {
+      const res = await fetch(`/api/visits/${visit.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(await getApiError(res, "Could not delete the visit."));
+      await loadVisits();
+    } catch (deleteFailure) {
+      setActionError(
+        deleteFailure instanceof Error ? deleteFailure.message : "Could not delete the visit."
+      );
+    } finally {
+      setVisitDeleting(visit.id, false);
+    }
   }
+
+  const visibleVisits = loading || loadError ? [] : visits;
 
   function getVisitsForDay(day: number): Visit[] {
     const dayDate = new Date(currentYear, currentMonth, day);
@@ -161,7 +273,7 @@ export function VisitCalendar() {
     const dayEnd = new Date(dayDate);
     dayEnd.setHours(23, 59, 59, 999);
 
-    return visits.filter((v) => {
+    return visibleVisits.filter((v) => {
       const vStart = parseDate(v.startDate);
       const vEnd = parseDate(v.endDate);
       return vStart <= dayEnd && vEnd >= dayStart;
@@ -204,8 +316,7 @@ export function VisitCalendar() {
     if (currentDay > daysInMonth) break;
   }
 
-  const upcomingVisits = visits
-    .filter((v) => parseDate(v.endDate) >= new Date())
+  const monthVisits = [...visibleVisits]
     .sort((a, b) => parseDate(a.startDate).getTime() - parseDate(b.startDate).getTime());
 
   return (
@@ -219,14 +330,28 @@ export function VisitCalendar() {
           <div className="flex items-center gap-1">
             <button
               onClick={prevMonth}
+              aria-label="Previous month"
               className="font-narrow text-galv-dim hover:text-paper px-2 py-1 transition-colors"
             >
               ‹
             </button>
             <button
               onClick={() => {
-                setCurrentMonth(new Date().getMonth());
-                setCurrentYear(new Date().getFullYear());
+                const todayDate = new Date();
+                if (
+                  currentMonth === todayDate.getMonth() &&
+                  currentYear === todayDate.getFullYear()
+                ) {
+                  void loadVisits();
+                } else {
+                  visibleRange.current = `${todayDate.getFullYear()}-${todayDate.getMonth()}`;
+                  setLoading(true);
+                  setLoadError("");
+                  setCurrentMonth(todayDate.getMonth());
+                  setCurrentYear(todayDate.getFullYear());
+                }
+                setSelectedDate(null);
+                setActionError("");
               }}
               className="font-narrow uppercase tracking-wider text-[0.6rem] text-galv-dim hover:text-iron-lt px-2 py-1 transition-colors"
             >
@@ -234,12 +359,36 @@ export function VisitCalendar() {
             </button>
             <button
               onClick={nextMonth}
+              aria-label="Next month"
               className="font-narrow text-galv-dim hover:text-paper px-2 py-1 transition-colors"
             >
               ›
             </button>
           </div>
         </div>
+
+        {loading && (
+          <p className="text-galv text-sm mb-4" aria-live="polite">
+            Loading visits...
+          </p>
+        )}
+        {loadError && (
+          <div role="alert" className="bg-iron/5 border border-iron/20 text-iron text-sm rounded p-3 mb-4 flex items-center justify-between gap-3">
+            <span>{loadError}</span>
+            <button
+              type="button"
+              onClick={() => loadVisits()}
+              className="font-narrow uppercase tracking-wider text-xs hover:text-paper"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+        {actionError && (
+          <div role="alert" className="bg-iron/5 border border-iron/20 text-iron text-sm rounded p-3 mb-4">
+            {actionError}
+          </div>
+        )}
 
         {/* Day headers */}
         <div className="grid grid-cols-7 mb-1">
@@ -331,7 +480,15 @@ export function VisitCalendar() {
                     {canManage && (
                       <div className="flex gap-1">
                         <button onClick={() => openForm(selectedDate, v)} className="text-galv-dim hover:text-iron-lt text-xs px-1">edit</button>
-                        <button onClick={() => deleteVisit(v.id)} className="text-galv-dim hover:text-iron text-xs px-1">×</button>
+                        <button
+                          onClick={() => deleteVisit(v)}
+                        disabled={deletingVisitIds.has(v.id)}
+                        aria-label={`Delete visit for ${v.visitorName}`}
+                        title="Delete visit"
+                        className="text-galv-dim hover:text-iron text-xs px-1 disabled:opacity-50"
+                        >
+                          ×
+                        </button>
                       </div>
                     )}
                   </div>
@@ -347,16 +504,22 @@ export function VisitCalendar() {
         {/* Upcoming */}
         <div className="card-surface p-4 sm:p-5">
           <h4 className="font-narrow uppercase tracking-wider text-xs font-bold text-galv mb-3">
-            Upcoming
+            {monthNames[currentMonth]} visits
           </h4>
-          {upcomingVisits.length === 0 ? (
-            <p className="text-xs text-galv-dim">No visits planned.</p>
+          {loading ? (
+            <p className="text-xs text-galv-dim">Loading...</p>
+          ) : loadError ? (
+            <p className="text-xs text-iron">Visits unavailable.</p>
+          ) : monthVisits.length === 0 ? (
+            <p className="text-xs text-galv-dim">No visits planned for this month.</p>
           ) : (
             <div className="space-y-2">
-              {upcomingVisits.slice(0, 5).map((v) => {
+              {monthVisits.slice(0, 8).map((v) => {
                 const vStart = parseDate(v.startDate);
                 const vEnd = parseDate(v.endDate);
-                const daysUntil = Math.ceil((vStart.getTime() - nowTime) / (1000 * 60 * 60 * 24));
+                const daysUntil = Math.round(
+                  (vStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+                );
                 return (
                   <div key={v.id} className="border-l-2 border-iron/30 pl-3 py-1">
                     <div className="font-narrow font-bold text-sm text-paper">{v.visitorName}</div>
@@ -389,7 +552,17 @@ export function VisitCalendar() {
               <h4 className="font-narrow uppercase tracking-wider text-xs font-bold text-galv">
                 {editingVisit ? "Edit Visit" : "New Visit"}
               </h4>
-              <button type="button" onClick={() => setShowForm(false)} className="text-galv-dim hover:text-iron text-xs">×</button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForm(false);
+                  setError("");
+                }}
+                aria-label="Close visit form"
+                className="text-galv-dim hover:text-iron text-xs"
+              >
+                ×
+              </button>
             </div>
 
             <div>
@@ -399,6 +572,7 @@ export function VisitCalendar() {
                 value={visitorName}
                 onChange={(e) => setVisitorName(e.target.value)}
                 required
+                maxLength={160}
                 placeholder="Name"
                 className="w-full bg-steel-3 border border-line rounded-lg px-3 py-2 text-paper text-sm focus:border-iron focus:outline-none transition-colors"
               />
@@ -433,6 +607,7 @@ export function VisitCalendar() {
                 type="text"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
+                maxLength={2000}
                 placeholder="Optional"
                 className="w-full bg-steel-3 border border-line rounded-lg px-3 py-2 text-paper text-sm focus:border-iron focus:outline-none transition-colors"
               />
@@ -444,6 +619,7 @@ export function VisitCalendar() {
                 type="text"
                 value={bringing}
                 onChange={(e) => setBringing(e.target.value)}
+                maxLength={1000}
                 placeholder="Supplies, parts, firewood..."
                 className="w-full bg-steel-3 border border-line rounded-lg px-3 py-2 text-paper text-sm focus:border-iron focus:outline-none transition-colors"
               />
