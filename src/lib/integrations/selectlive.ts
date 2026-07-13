@@ -51,7 +51,12 @@ async function login(): Promise<string | null> {
   const password = process.env.SELECT_LIVE_PWD;
 
   if (!email || !password) {
-    console.error("[select.live] Missing SELECT_LIVE_EMAIL or SELECT_LIVE_PWD env vars");
+    console.error("[select.live] Missing env vars. EMAIL:", !!email, "PWD:", !!password);
+    return null;
+  }
+
+  if (password === "CHANGE_ME") {
+    console.error("[select.live] Password not set — still CHANGE_ME");
     return null;
   }
 
