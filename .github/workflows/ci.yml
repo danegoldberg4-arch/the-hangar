@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm install --global npm@11.9.0
+      - run: npm ci
+      - run: npx prisma validate
+      - run: npm run check
+      - run: npm run build
+        env:
+          DATABASE_URL: postgresql://user:password@localhost:5432/hangar
+          AUTH_SECRET: ci-only-placeholder-secret
+          INVITE_CODE: ci-only-placeholder-invite
+          CRON_SECRET: ci-only-placeholder-cron
+          INGEST_TOKEN: ci-only-placeholder-ingest
+      - run: npm audit --omit=dev --audit-level=high
