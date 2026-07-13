@@ -61,8 +61,6 @@ export const viewport: Viewport = {
   ],
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
 };
 
 export default function RootLayout({
@@ -83,10 +81,16 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col bg-steel text-paper overflow-x-hidden">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded focus:bg-paper focus:px-4 focus:py-2 focus:text-steel"
+        >
+          Skip to content
+        </a>
         <SerwistProvider swUrl="/serwist/sw.js">
           <Providers>
             <Nav />
-            <main className="flex-1 overflow-x-hidden">{children}</main>
+            <main id="main-content" className="flex-1 overflow-x-hidden">{children}</main>
           </Providers>
         </SerwistProvider>
       </body>

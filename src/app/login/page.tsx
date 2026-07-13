@@ -52,24 +52,28 @@ export default async function LoginPage({
             className="space-y-4"
           >
             <div>
-              <label className="font-narrow uppercase tracking-wider text-xs text-galv-dim block mb-1">
+              <label htmlFor="email" className="font-narrow uppercase tracking-wider text-xs text-galv-dim block mb-1">
                 Email
               </label>
               <input
                 name="email"
+                id="email"
                 type="email"
+                autoComplete="email"
                 required
                 placeholder="dane@example.com"
                 className="w-full bg-steel-3 border border-line rounded-lg px-4 py-2.5 text-paper text-sm focus:border-iron focus:outline-none transition-colors"
               />
             </div>
             <div>
-              <label className="font-narrow uppercase tracking-wider text-xs text-galv-dim block mb-1">
+              <label htmlFor="password" className="font-narrow uppercase tracking-wider text-xs text-galv-dim block mb-1">
                 Password
               </label>
               <input
                 name="password"
+                id="password"
                 type="password"
+                autoComplete="current-password"
                 required
                 className="w-full bg-steel-3 border border-line rounded-lg px-4 py-2.5 text-paper text-sm focus:border-iron focus:outline-none transition-colors"
               />

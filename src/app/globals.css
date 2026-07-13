@@ -6,7 +6,7 @@
   --color-steel-3: #1c2026;
   --color-steel-4: #232830;
   --color-galv: #9aa1ab;
-  --color-galv-dim: #646b75;
+  --color-galv-dim: #858d98;
   --color-iron: #b06a3f;
   --color-iron-lt: #d4956a;
   --color-sand: #e9e3d6;
@@ -152,6 +152,11 @@ button:active {
   transform: scale(0.97);
 }
 
+:where(a, button, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--color-iron-lt);
+  outline-offset: 3px;
+}
+
 /* Smooth scrollbar for nav */
 .scrollbar-hide {
   -ms-overflow-style: none;
@@ -177,7 +182,7 @@ button:active {
     --color-steel-3: #e9e3d6;
     --color-steel-4: #dcd5c4;
     --color-galv: #4a5058;
-    --color-galv-dim: #7a818b;
+    --color-galv-dim: #606874;
     --color-iron: #a05a2f;
     --color-iron-lt: #b8704a;
     --color-paper: #1a1d22;
@@ -185,6 +190,11 @@ button:active {
     --color-forest-lt: #4f5e54;
     --color-line: rgba(0, 0, 0, 0.08);
     --color-line-bright: rgba(0, 0, 0, 0.14);
+    --color-green-400: #15803d;
+    --color-amber-400: #92400e;
+    --color-sky-400: #0369a1;
+    --color-red-400: #b91c1c;
+    --color-purple-400: #7e22ce;
   }
 
   :root:not([data-theme="dark"]) body {
@@ -205,7 +215,7 @@ button:active {
   --color-steel-3: #e9e3d6;
   --color-steel-4: #dcd5c4;
   --color-galv: #4a5058;
-  --color-galv-dim: #7a818b;
+  --color-galv-dim: #606874;
   --color-iron: #a05a2f;
   --color-iron-lt: #b8704a;
   --color-paper: #1a1d22;
@@ -213,6 +223,11 @@ button:active {
   --color-forest-lt: #4f5e54;
   --color-line: rgba(0, 0, 0, 0.08);
   --color-line-bright: rgba(0, 0, 0, 0.14);
+  --color-green-400: #15803d;
+  --color-amber-400: #92400e;
+  --color-sky-400: #0369a1;
+  --color-red-400: #b91c1c;
+  --color-purple-400: #7e22ce;
 }
 
 :root[data-theme="light"] body {

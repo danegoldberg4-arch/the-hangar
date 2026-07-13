@@ -77,11 +77,13 @@ export default function SignupPage() {
 
           <form onSubmit={handleSubmit} className="space-y-3">
             <div>
-              <label className="font-narrow uppercase tracking-wider text-xs text-galv-dim block mb-1">
+              <label htmlFor="signup-name" className="font-narrow uppercase tracking-wider text-xs text-galv-dim block mb-1">
                 Your name
               </label>
               <input
                 type="text"
+                id="signup-name"
+                autoComplete="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
@@ -90,11 +92,13 @@ export default function SignupPage() {
               />
             </div>
             <div>
-              <label className="font-narrow uppercase tracking-wider text-xs text-galv-dim block mb-1">
+              <label htmlFor="signup-email" className="font-narrow uppercase tracking-wider text-xs text-galv-dim block mb-1">
                 Email
               </label>
               <input
                 type="email"
+                id="signup-email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -103,11 +107,13 @@ export default function SignupPage() {
               />
             </div>
             <div>
-              <label className="font-narrow uppercase tracking-wider text-xs text-galv-dim block mb-1">
+              <label htmlFor="signup-password" className="font-narrow uppercase tracking-wider text-xs text-galv-dim block mb-1">
                 Password
               </label>
               <input
                 type="password"
+                id="signup-password"
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -117,11 +123,13 @@ export default function SignupPage() {
               />
             </div>
             <div>
-              <label className="font-narrow uppercase tracking-wider text-xs text-galv-dim block mb-1">
+              <label htmlFor="invite-code" className="font-narrow uppercase tracking-wider text-xs text-galv-dim block mb-1">
                 Invite code
               </label>
               <input
                 type="text"
+                id="invite-code"
+                autoComplete="off"
                 value={inviteCode}
                 onChange={(e) => setInviteCode(e.target.value)}
                 placeholder="Family code"

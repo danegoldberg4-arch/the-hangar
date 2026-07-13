@@ -3,7 +3,6 @@ import {
   fetchWeatherObservation,
   fetchFireDanger,
   fetchWeatherWarnings,
-  getLatestWeather,
   getLatestFireDanger,
 } from "@/lib/integrations/weather";
 import { getLatestPower, fetchPowerData } from "@/lib/integrations/selectlive";
@@ -49,7 +48,7 @@ export async function MonitoringPanel() {
     !existingPower ||
     (now.getTime() - existingPower.timestamp * 1000) / 60000 > STALE_THRESHOLD_MIN;
 
-  const [freshWeather, freshFdr, warnings, freshPower, sunTimes, currentWeather] = await Promise.all([
+  const [, freshFdr, warnings, freshPower, sunTimes, currentWeather] = await Promise.all([
     weatherStale ? fetchWeatherObservation() : Promise.resolve(null),
     fdrStale ? fetchFireDanger() : Promise.resolve(null),
     fetchWeatherWarnings(),
