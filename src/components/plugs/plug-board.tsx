@@ -29,7 +29,7 @@ export function PlugBoard() {
 
   const loadPlugs = useCallback(async () => {
     try {
-      const response = await fetch("/api/plugs", { credentials: "same-origin", credentials: "same-origin" });
+      const response = await fetch("/api/plugs", { credentials: "same-origin" });
       if (!response.ok) {
         throw new Error(`Device inventory returned ${response.status}`);
       }
