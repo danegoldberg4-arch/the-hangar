@@ -138,7 +138,11 @@ export default function KioskPage() {
     return (
       <div className="min-h-screen bg-steel flex items-center justify-center">
         <div className="text-center">
-          <img src="/hangar-emblem.png" alt="The Hangar" className="w-16 h-16 mx-auto mb-4 rounded-2xl animate-pulse" />
+          <img
+            src="/hangar-emblem.svg"
+            alt="The Hangar"
+            className="size-24 object-contain mx-auto mb-4 animate-pulse"
+          />
           <p className="font-narrow uppercase tracking-wider text-sm text-galv-dim">
             {loadError ? "Monitoring unavailable" : "Loading..."}
           </p>
@@ -211,7 +215,12 @@ export default function KioskPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <img src="/hangar-emblem.png" alt="The Hangar" className="w-9 h-9 rounded-xl" />
+          <img
+            src="/hangar-emblem.svg"
+            alt=""
+            aria-hidden="true"
+            className="size-12 sm:size-14 object-contain shrink-0"
+          />
           <div>
             <h1 className="font-narrow font-bold uppercase text-xl tracking-tight text-paper">The Hangar</h1>
             <p className="font-narrow uppercase tracking-wider text-[0.6rem] text-galv-dim">Upper Kangaroo River · NSW</p>
