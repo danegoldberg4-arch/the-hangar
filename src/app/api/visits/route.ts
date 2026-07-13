@@ -1,12 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/api-auth";
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const access = await requireUser();
+  if (!access.ok) return access.response;
 
   const now = new Date();
   const threeMonthsAgo = new Date(now);
@@ -29,10 +27,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const access = await requireUser();
+  if (!access.ok) return access.response;
 
   const body = await request.json();
   const { visitorName, startDate, endDate, notes, bringing } = body;
@@ -56,7 +52,7 @@ export async function POST(request: NextRequest) {
 
   const visit = await prisma.visit.create({
     data: {
-      userId: (session.user as { id?: string }).id || null,
+      userId: access.user.id,
       visitorName: visitorName.trim(),
       startDate: start,
       endDate: end,

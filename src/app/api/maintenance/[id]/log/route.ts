@@ -1,16 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/api-auth";
 import { computeNextDue } from "@/lib/maintenance";
 
 export async function POST(
   request: NextRequest,
   ctx: RouteContext<"/api/maintenance/[id]/log">
 ) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const access = await requireUser();
+  if (!access.ok) return access.response;
 
   const { id } = await ctx.params;
   const body = await request.json();
@@ -23,13 +21,11 @@ export async function POST(
   }
 
   const logDate = completedAt ? new Date(completedAt) : new Date();
-  const userId = (session.user as { id?: string }).id;
-
   const log = await prisma.maintenanceLog.create({
     data: {
       itemId: id,
-      userId: userId || null,
-      completedBy: session.user.name || "Unknown",
+      userId: access.user.id,
+      completedBy: access.user.name || "Unknown",
       notes: notes || "",
       partsUsed: partsUsed || "[]",
       completedAt: logDate,

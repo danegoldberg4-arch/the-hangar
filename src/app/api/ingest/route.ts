@@ -1,19 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-
-const INGEST_TOKEN = process.env.INGEST_TOKEN;
+import { hasValidBearerToken } from "@/lib/bearer-auth";
 
 export async function POST(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
+  const ingestToken = process.env.INGEST_TOKEN;
 
-  if (!INGEST_TOKEN) {
+  if (!ingestToken) {
     return NextResponse.json(
-      { error: "Ingest not configured. Set INGEST_TOKEN env var." },
+      { error: "Service unavailable" },
       { status: 503 }
     );
   }
 
-  if (authHeader !== `Bearer ${INGEST_TOKEN}`) {
+  if (!hasValidBearerToken(request, ingestToken)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -42,7 +41,7 @@ export async function POST(request: NextRequest) {
 
     default:
       return NextResponse.json(
-        { error: `Unknown source: ${source}` },
+        { error: "Unsupported source" },
         { status: 400 }
       );
   }

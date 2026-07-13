@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const access = await requireUser();
+  if (!access.ok) return access.response;
 
   const latest = await prisma.starlinkStatus.findFirst({
     orderBy: { recordedAt: "desc" },

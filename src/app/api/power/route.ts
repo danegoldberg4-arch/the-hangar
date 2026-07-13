@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/api-auth";
 import { fetchPowerData, getPowerHistory } from "@/lib/integrations/selectlive";
 
 export async function GET(request: Request) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const access = await requireUser();
+  if (!access.ok) return access.response;
 
   const { searchParams } = new URL(request.url);
   const hours = parseInt(searchParams.get("hours") || "0");
@@ -19,13 +17,10 @@ export async function GET(request: Request) {
   const power = await fetchPowerData();
 
   if (!power) {
-    return NextResponse.json({
-      error: "No power data available",
-      emailSet: !!process.env.SELECT_LIVE_EMAIL,
-      pwdSet: !!process.env.SELECT_LIVE_PWD,
-      pwdValue: process.env.SELECT_LIVE_PWD === "CHANGE_ME" ? "CHANGE_ME (not set)" : !!process.env.SELECT_LIVE_PWD ? "set" : "empty",
-      systemSet: !!process.env.SELECT_LIVE_SYSTEM,
-    }, { status: 404 });
+    return NextResponse.json(
+      { error: "No power data available" },
+      { status: 404 }
+    );
   }
 
   return NextResponse.json({

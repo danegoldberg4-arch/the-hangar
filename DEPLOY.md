@@ -13,12 +13,12 @@ Start from `.env.example`. The required production values are:
 - `DATABASE_URL`
 - `AUTH_SECRET`
 - `CRON_SECRET`
-- `INGEST_TOKEN`
+- `ADMIN_BOOTSTRAP_TOKEN` during initial setup
 - `INVITE_CODE`
 
-The optional power integration uses `SELECT_LIVE_EMAIL`, `SELECT_LIVE_PWD`, and `SELECT_LIVE_SYSTEM`.
+`AUTH_RATE_LIMIT_SECRET` is recommended so rate-limit identifiers use a separate HMAC key; the server falls back to `AUTH_SECRET` when it is omitted. `INGEST_TOKEN` is required when the Pi relay is enabled. The optional power integration uses `SELECT_LIVE_EMAIL`, `SELECT_LIVE_PWD`, and `SELECT_LIVE_SYSTEM`.
 
-Generate each secret independently with a cryptographically secure generator. A missing invite code must be treated as a deployment error, not as open registration.
+Generate each secret independently with a cryptographically secure generator. Missing bootstrap, invite, or rate-limit storage configuration fails closed rather than opening registration or login.
 
 ## 3. Apply the Schema
 
@@ -39,6 +39,8 @@ npx prisma migrate resolve --applied 20260713000000_baseline
 
 This baseline command is a one-time transition step. Fresh databases should use `prisma migrate deploy` normally.
 
+Apply migrations before deploying new application code. Authentication intentionally fails closed if the durable rate-limit table is unavailable.
+
 ## 4. Deploy
 
 Import `danegoldberg4-arch/the-hangar` into Vercel, configure all environment variables, and deploy from `main`. Before promoting a release, require the GitHub CI check and verify `/login`, the dashboard, and the scheduled poll endpoint.
@@ -47,7 +49,15 @@ The application cron is defined in `vercel.json`. Confirm that the selected Verc
 
 ## 5. Bootstrap Access
 
-Create the initial administrator immediately after deployment using the configured invite code. Do not expose an application connected to an empty database before the intended administrator can claim it. Disable or restrict registration once the family accounts exist.
+Create the initial administrator immediately after deployment using `ADMIN_BOOTSTRAP_TOKEN`. Later accounts require `INVITE_CODE` and receive the family role. Remove `ADMIN_BOOTSTRAP_TOKEN` from the deployment environment after the administrator exists.
+
+While signed in as that administrator, seed the maintenance schedule from the application origin:
+
+```js
+await fetch("/api/seed", { method: "POST" }).then((response) => response.json());
+```
+
+The seed endpoint is admin-only and refuses to run after maintenance data exists. Do not expose an application connected to an empty database before the intended administrator can claim it.
 
 ## 6. Raspberry Pi Relay
 

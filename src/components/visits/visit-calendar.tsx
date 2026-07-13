@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSession } from "next-auth/react";
 
 interface Visit {
   id: string;
+  userId: string | null;
   visitorName: string;
   startDate: string;
   endDate: string;
@@ -31,6 +33,7 @@ function parseDate(s: string): Date {
 }
 
 export function VisitCalendar() {
+  const { data: session } = useSession();
   const now = new Date();
   const [visits, setVisits] = useState<Visit[]>([]);
   const [, setLoading] = useState(true);
@@ -309,6 +312,9 @@ export function VisitCalendar() {
             {getVisitsForDay(parseDate(selectedDate).getDate()).map((v) => {
               const vStart = parseDate(v.startDate);
               const vEnd = parseDate(v.endDate);
+              const canManage =
+                session?.user?.role === "admin" ||
+                (v.userId !== null && v.userId === session?.user?.id);
               return (
                 <div key={v.id} className="bg-forest-lt/20 border border-line rounded-lg p-3">
                   <div className="flex items-start justify-between gap-2">
@@ -322,10 +328,12 @@ export function VisitCalendar() {
                         <p className="text-xs text-green-400 mt-1">Bringing: {v.bringing}</p>
                       )}
                     </div>
-                    <div className="flex gap-1">
-                      <button onClick={() => openForm(selectedDate, v)} className="text-galv-dim hover:text-iron-lt text-xs px-1">edit</button>
-                      <button onClick={() => deleteVisit(v.id)} className="text-galv-dim hover:text-iron text-xs px-1">×</button>
-                    </div>
+                    {canManage && (
+                      <div className="flex gap-1">
+                        <button onClick={() => openForm(selectedDate, v)} className="text-galv-dim hover:text-iron-lt text-xs px-1">edit</button>
+                        <button onClick={() => deleteVisit(v.id)} className="text-galv-dim hover:text-iron text-xs px-1">×</button>
+                      </div>
+                    )}
                   </div>
                 </div>
               );

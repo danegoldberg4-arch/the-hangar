@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 
 const categories = [
@@ -18,6 +19,7 @@ const categories = [
 
 export default function NewMaintenanceItemPage() {
   const router = useRouter();
+  const { data: session, status } = useSession();
   const [name, setName] = useState("");
   const [category, setCategory] = useState("general");
   const [description, setDescription] = useState("");
@@ -27,6 +29,16 @@ export default function NewMaintenanceItemPage() {
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (status === "authenticated" && session.user.role !== "admin") {
+      router.replace("/maintenance");
+    }
+  }, [router, session, status]);
+
+  if (status !== "authenticated" || session.user.role !== "admin") {
+    return null;
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
