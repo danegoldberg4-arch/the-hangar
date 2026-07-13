@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
+import { HangarBrand } from "@/components/brand/hangar-brand";
 
 export default function SignupPage() {
   const [name, setName] = useState("");
@@ -46,16 +47,13 @@ export default function SignupPage() {
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-sm">
         <div className="text-center mb-6">
-          <img
-            src="/hangar-emblem.svg"
+          <HangarBrand
+            variant="lockup"
             alt=""
-            aria-hidden="true"
-            className="size-24 sm:size-28 object-contain mx-auto mb-4"
+            className="w-full max-w-[19rem] mx-auto"
           />
-          <h1 className="font-narrow font-bold uppercase text-2xl tracking-tight text-paper">
-            The Hangar
-          </h1>
-          <p className="text-sm text-galv-dim mt-1">
+          <h1 className="sr-only">The Hangar</h1>
+          <p className="text-sm text-galv-dim mt-3">
             Upper Kangaroo River · NSW
           </p>
         </div>

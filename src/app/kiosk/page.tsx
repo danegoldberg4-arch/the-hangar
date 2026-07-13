@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { HangarBrand } from "@/components/brand/hangar-brand";
 import {
   AreaChart,
   Area,
@@ -138,10 +139,9 @@ export default function KioskPage() {
     return (
       <div className="min-h-screen bg-steel flex items-center justify-center">
         <div className="text-center">
-          <img
-            src="/hangar-emblem.svg"
-            alt="The Hangar"
-            className="size-24 object-contain mx-auto mb-4 animate-pulse"
+          <HangarBrand
+            variant="app-icon"
+            className="size-24 mx-auto mb-4 animate-pulse"
           />
           <p className="font-narrow uppercase tracking-wider text-sm text-galv-dim">
             {loadError ? "Monitoring unavailable" : "Loading..."}
@@ -215,15 +215,14 @@ export default function KioskPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <img
-            src="/hangar-emblem.svg"
-            alt=""
-            aria-hidden="true"
-            className="size-12 sm:size-14 object-contain shrink-0"
-          />
           <div>
-            <h1 className="font-narrow font-bold uppercase text-xl tracking-tight text-paper">The Hangar</h1>
-            <p className="font-narrow uppercase tracking-wider text-[0.6rem] text-galv-dim">Upper Kangaroo River · NSW</p>
+            <HangarBrand
+              variant="signature"
+              alt=""
+              className="w-36 sm:w-44"
+            />
+            <h1 className="sr-only">The Hangar</h1>
+            <p className="font-narrow uppercase tracking-wider text-[0.6rem] text-galv-dim mt-1">Upper Kangaroo River · NSW</p>
           </div>
         </div>
         <div className="text-right">

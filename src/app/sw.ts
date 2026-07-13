@@ -46,7 +46,7 @@ const runtimeCaching: RuntimeCaching[] = [
     matcher: ({ request, sameOrigin }) =>
       sameOrigin && ["font", "image", "style"].includes(request.destination),
     handler: new StaleWhileRevalidate({
-      cacheName: "hangar-public-assets-v1",
+      cacheName: "hangar-public-assets-v2",
       plugins: [
         new ExpirationPlugin({
           maxEntries: 96,
@@ -82,6 +82,7 @@ const serwist = new Serwist({
 });
 
 const legacyPrivateCaches = new Set([
+  "hangar-public-assets-v1",
   "apis",
   "next-data",
   "others",

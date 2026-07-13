@@ -1,13 +1,14 @@
 "use client";
 
+import { HangarBrand } from "@/components/brand/hangar-brand";
+
 export default function Error({ reset }: { error: Error; reset: () => void }) {
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4">
       <div className="text-center max-w-md">
-        <img
-          src="/hangar-emblem.svg"
-          alt="The Hangar"
-          className="size-20 object-contain mx-auto mb-5"
+        <HangarBrand
+          variant="app-icon"
+          className="size-20 mx-auto mb-5"
         />
         <h1 className="font-narrow font-bold uppercase text-xl text-paper mb-2">
           Connection issue
