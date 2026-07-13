@@ -1,22 +1,25 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/api-auth";
 import { fetchFireDanger, getLatestFireDanger } from "@/lib/integrations/weather";
+import { unavailableMeta } from "@/lib/integrations/freshness";
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const access = await requireUser();
+  if (!access.ok) return access.response;
 
   const fresh = await fetchFireDanger();
-  const rating = fresh || (await getLatestFireDanger());
+  const rating = fresh ?? (await getLatestFireDanger());
 
   if (!rating) {
-    return NextResponse.json({ error: "No fire danger data available" }, { status: 404 });
+    return NextResponse.json(
+      { error: "No fire danger observation is available", ...unavailableMeta(), refreshSucceeded: false },
+      { status: 503 }
+    );
   }
 
   return NextResponse.json({
     ...rating,
+    refreshSucceeded: fresh !== null,
     fetchedAt: new Date().toISOString(),
   });
 }

@@ -1,114 +1,153 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/api-auth";
 import { calculateStatus } from "@/lib/maintenance";
 import { fetchCurrentWeather, fetchForecast, fetchSunTimes } from "@/lib/integrations/forecast";
 import { getLatestFireDanger } from "@/lib/integrations/weather";
-import { getLatestPower, fetchPowerData } from "@/lib/integrations/selectlive";
+import { getLatestPower } from "@/lib/integrations/selectlive";
 import { getRainSummary } from "@/lib/integrations/rain";
+import { unavailableMeta, type ObservationMeta } from "@/lib/integrations/freshness";
+import { startOfDayInTimeZone } from "@/lib/time";
+
+export const maxDuration = 30;
+
+function sourceMeta(source: ObservationMeta | null) {
+  return source
+    ? {
+        freshness: source.freshness,
+        observedAt: source.observedAt,
+        ageSeconds: source.ageSeconds,
+      }
+    : unavailableMeta();
+}
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const access = await requireUser();
+  if (!access.ok) return access.response;
 
   const now = new Date();
-
+  const startOfSydneyToday = startOfDayInTimeZone(now, "Australia/Sydney");
   const [
     maintenanceItems,
     restockCount,
     visits,
-    existingPower,
+    power,
     fireDanger,
     weather,
     forecast,
     sunTimes,
     rain,
-    powerHistory,
+    powerReadings,
   ] = await Promise.all([
     prisma.maintenanceItem.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
     prisma.restockItem.count({ where: { isResolved: false } }),
-    prisma.visit.findMany({ where: { endDate: { gte: now } }, orderBy: { startDate: "asc" }, take: 5 }),
+    prisma.visit.findMany({
+      where: { endDate: { gte: startOfSydneyToday } },
+      orderBy: { startDate: "asc" },
+      take: 5,
+    }),
     getLatestPower(),
     getLatestFireDanger(),
     fetchCurrentWeather(),
     fetchForecast(),
     fetchSunTimes(),
     getRainSummary(),
-    (async () => {
-      const since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      const readings = await prisma.powerReading.findMany({
-        where: { recordedAt: { gte: since } },
-        orderBy: { recordedAt: "asc" },
-      });
-      return readings.map((r) => ({
-        time: r.recordedAt.toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit" }),
-        batterySoc: r.batterySoc,
-        solarW: Math.round(r.solarW),
-        loadW: Math.round(r.loadW),
-      }));
-    })(),
+    prisma.powerReading.findMany({
+      where: {
+        observedAt: { gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) },
+        sourceTimestampTrusted: true,
+      },
+      orderBy: { observedAt: "asc" },
+    }),
   ]);
-
-  const powerStale = !existingPower || (now.getTime() - existingPower.timestamp * 1000) / 60000 > 15;
-  const power = powerStale ? await fetchPowerData() : existingPower;
 
   const alerts = maintenanceItems
     .map((item) => {
-      const { status, daysUntilDue } = calculateStatus(item.intervalDays, item.lastCompletedAt, item.nextDueAt);
+      const { status, daysUntilDue } = calculateStatus(
+        item.intervalDays,
+        item.lastCompletedAt,
+        item.nextDueAt
+      );
       return { name: item.name, status, daysOverdue: daysUntilDue ?? 0 };
     })
-    .filter((a) => a.status === "overdue");
+    .filter((alert) => alert.status === "overdue");
 
   return NextResponse.json({
-    power: power ? {
-      batterySoc: power.batterySoc,
-      solarW: power.solarW,
-      loadW: power.loadW,
-      genRunning: power.genRunning,
-      gridW: power.gridW,
-      stale: power.stale,
-    } : null,
-    weather: weather ? {
-      temp: weather.temp,
-      humidity: weather.humidity,
-      windSpeed: weather.windSpeed,
-      windDir: weather.windDir,
-      precipitation: weather.precipitation,
-      weatherCode: weather.weatherCode,
-    } : null,
-    forecast: forecast ? {
-      daily: forecast.daily.map((d) => ({
-        date: d.date,
-        maxTemp: d.maxTemp,
-        minTemp: d.minTemp,
-        precipitation: d.precipitation,
-        weatherCode: d.weatherCode,
-      })),
-    } : null,
-    fireDanger: fireDanger ? {
-      dangerToday: fireDanger.dangerToday,
-      dangerTomorrow: fireDanger.dangerTomorrow,
-      fireBanToday: fireDanger.fireBanToday,
-    } : null,
-    rain: rain ? {
-      today: rain.today,
-      week: rain.week,
-      month: rain.month,
-      history: rain.dailyHistory,
-    } : null,
-    sunTimes: sunTimes ? {
-      sunrise: sunTimes.sunrise,
-      sunset: sunTimes.sunset,
-    } : null,
-    powerHistory,
-    alerts: alerts.map((a) => ({ name: a.name, daysOverdue: a.daysOverdue })),
-    restockCount,
-    visits: visits.map((v) => ({
-      visitorName: v.visitorName,
-      startDate: v.startDate.toISOString(),
-      endDate: v.endDate.toISOString(),
+    sources: {
+      power: sourceMeta(power),
+      weather: sourceMeta(weather),
+      forecast: sourceMeta(forecast),
+      fireDanger: sourceMeta(fireDanger),
+      rain: sourceMeta(rain),
+      sunTimes: sourceMeta(sunTimes),
+    },
+    power: power
+      ? {
+          batterySoc: power.batterySoc,
+          solarW: power.solarW,
+          loadW: power.loadW,
+          genRunning: power.genRunning,
+          gridW: power.gridW,
+          freshness: power.freshness,
+          observedAt: power.observedAt,
+          ageSeconds: power.ageSeconds,
+        }
+      : null,
+    weather,
+    forecast: forecast
+      ? {
+          daily: forecast.daily.map((day) => ({
+            date: day.date,
+            maxTemp: day.maxTemp,
+            minTemp: day.minTemp,
+            precipitation: day.precipitation,
+            weatherCode: day.weatherCode,
+          })),
+          freshness: forecast.freshness,
+          observedAt: forecast.observedAt,
+          ageSeconds: forecast.ageSeconds,
+        }
+      : null,
+    fireDanger: fireDanger
+      ? {
+          dangerToday: fireDanger.dangerToday,
+          dangerTomorrow: fireDanger.dangerTomorrow,
+          fireBanToday: fireDanger.fireBanToday,
+          reportDate: fireDanger.reportDate,
+          freshness: fireDanger.freshness,
+          observedAt: fireDanger.observedAt,
+          ageSeconds: fireDanger.ageSeconds,
+        }
+      : null,
+    rain: rain
+      ? {
+          today: rain.today,
+          week: rain.week,
+          month: rain.month,
+          history: rain.dailyHistory,
+          freshness: rain.freshness,
+          observedAt: rain.observedAt,
+          ageSeconds: rain.ageSeconds,
+        }
+      : null,
+    sunTimes,
+    powerHistory: powerReadings.map((reading) => ({
+      time: reading.observedAt.toLocaleTimeString("en-AU", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "Australia/Sydney",
+      }),
+      batterySoc: reading.batterySoc,
+      solarW: Math.round(reading.solarW),
+      loadW: Math.round(reading.loadW),
     })),
+    alerts: alerts.map((alert) => ({ name: alert.name, daysOverdue: alert.daysOverdue })),
+    restockCount,
+    visits: visits.map((visit) => ({
+      visitorName: visit.visitorName,
+      startDate: visit.startDate.toISOString(),
+      endDate: visit.endDate.toISOString(),
+    })),
+    generatedAt: now.toISOString(),
   });
 }

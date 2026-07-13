@@ -10,13 +10,14 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
+import { freshnessLabel, type ObservationMeta } from "@/lib/integrations/freshness";
 
 interface RainData {
   date: string;
   total: number;
 }
 
-interface RainWidgetProps {
+interface RainWidgetProps extends ObservationMeta {
   today: number;
   week: number;
   month: number;
@@ -25,10 +26,15 @@ interface RainWidgetProps {
 
 type Range = "today" | "week" | "month";
 
-export function RainChart({ today, week, month, history }: RainWidgetProps) {
+export function RainChart({ today, week, month, history, freshness, observedAt, ageSeconds }: RainWidgetProps) {
   const [range, setRange] = useState<Range>("week");
 
-  const todayKey = new Date().toLocaleDateString("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" });
+  const todayKey = new Date().toLocaleDateString("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: "Australia/Sydney",
+  });
 
   const data = (() => {
     if (range === "today") return history.slice(-1);
@@ -40,7 +46,11 @@ export function RainChart({ today, week, month, history }: RainWidgetProps) {
 
   const formatXAxis = (date: string) => {
     const d = new Date(date);
-    return d.toLocaleDateString("en-AU", { day: "numeric", month: "short" });
+    return d.toLocaleDateString("en-AU", {
+      day: "numeric",
+      month: "short",
+      timeZone: "Australia/Sydney",
+    });
   };
 
   const rangeConfig: Record<Range, { label: string; count: number }> = {
@@ -56,8 +66,8 @@ export function RainChart({ today, week, month, history }: RainWidgetProps) {
           <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
           <h3 className="font-narrow uppercase tracking-wider text-xs font-bold text-galv">Rainfall</h3>
         </div>
-        <span className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">
-          Kangaroo Valley
+        <span className={`font-narrow uppercase tracking-wider text-[0.55rem] ${freshness === "live" ? "text-green-400" : "text-galv-dim"}`}>
+          {freshnessLabel({ freshness, observedAt, ageSeconds })}
         </span>
       </div>
 
@@ -113,7 +123,14 @@ export function RainChart({ today, week, month, history }: RainWidgetProps) {
                 fontSize: "12px",
                 fontFamily: "Archivo Narrow",
               }}
-              labelFormatter={(label) => new Date(label).toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" })}
+              labelFormatter={(label) =>
+                new Date(label).toLocaleDateString("en-AU", {
+                  weekday: "short",
+                  day: "numeric",
+                  month: "short",
+                  timeZone: "Australia/Sydney",
+                })
+              }
               labelStyle={{ color: "#9aa1ab" }}
               itemStyle={{ color: "#f3efe7" }}
               formatter={(value: unknown) => [`${Number(value).toFixed(1)}mm`, "Rain"]}

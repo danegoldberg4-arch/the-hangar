@@ -6,12 +6,16 @@ export async function PowerHistoryChart() {
   const since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
   const readings = await prisma.powerReading.findMany({
-    where: { recordedAt: { gte: since } },
-    orderBy: { recordedAt: "asc" },
+    where: { observedAt: { gte: since }, sourceTimestampTrusted: true },
+    orderBy: { observedAt: "asc" },
   });
 
   const data = readings.map((r) => ({
-    time: r.recordedAt.toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit" }),
+    time: r.observedAt.toLocaleTimeString("en-AU", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "Australia/Sydney",
+    }),
     batterySoc: r.batterySoc,
     solarW: Math.round(r.solarW),
     loadW: Math.round(r.loadW),
