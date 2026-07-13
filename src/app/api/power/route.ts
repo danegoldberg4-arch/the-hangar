@@ -15,12 +15,20 @@ export async function GET(request: Request) {
 
   if (hours > 0) {
     const history = await getPowerHistory(hours);
-    const latest = history.at(-1);
     return NextResponse.json({
-      history,
-      freshness: latest?.freshness ?? "unavailable",
-      observedAt: latest?.observedAt ?? null,
-      ageSeconds: latest?.ageSeconds ?? null,
+      history: history.map((h) => ({
+        time: h.observedAt
+          ? new Date(h.observedAt).toLocaleTimeString("en-AU", {
+              hour: "2-digit",
+              minute: "2-digit",
+              timeZone: "Australia/Sydney",
+            })
+          : "",
+        batterySoc: h.batterySoc,
+        solarW: h.solarW,
+        loadW: h.loadW,
+        batteryW: h.batteryW,
+      })),
       fetchedAt: new Date().toISOString(),
     });
   }
