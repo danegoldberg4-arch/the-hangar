@@ -48,9 +48,6 @@ export default async function DashboardPage() {
         <h1 className="font-narrow font-bold uppercase text-3xl sm:text-5xl tracking-tight mt-2 text-paper">
           The Hangar
         </h1>
-        <p className="lead text-lg text-galv mt-2 max-w-xl">
-          Off-grid by design. Here&apos;s how it&apos;s running.
-        </p>
       </div>
 
       {/* Alerts */}
