@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/api-auth";
 import { getLatestPower, fetchPowerData } from "@/lib/integrations/selectlive";
 import { fetchCurrentWeather, fetchSunTimes } from "@/lib/integrations/forecast";
 import { getLatestFireDanger, fetchWeatherWarnings } from "@/lib/integrations/weather";
@@ -9,27 +8,30 @@ export const maxDuration = 15;
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const access = await requireUser();
-  if (!access.ok) return access.response;
-
   const now = new Date();
   const fifteenMinAgo = new Date(now.getTime() - 15 * 60 * 1000);
 
-  // Read from DB first — fast
-  const [existingPower, fireDanger, starlink] = await Promise.all([
-    getLatestPower(),
-    getLatestFireDanger(),
-    prisma.starlinkStatus.findFirst({ orderBy: { observedAt: "desc" } }),
-  ]);
+  let existingPower = null;
+  let fireDanger = null;
+  let starlink = null;
 
-  // Only fetch from external APIs if DB data is stale — parallel
+  try {
+    [existingPower, fireDanger, starlink] = await Promise.all([
+      getLatestPower(),
+      getLatestFireDanger(),
+      prisma.starlinkStatus.findFirst({ orderBy: { observedAt: "desc" } }),
+    ]);
+  } catch {
+    // DB might be cold-starting on Neon free tier
+  }
+
   const powerStale = !existingPower || (existingPower.observedAt ? new Date(existingPower.observedAt) < fifteenMinAgo : true);
 
   const [power, weather, sunTimes, warnings] = await Promise.all([
-    powerStale ? fetchPowerData() : Promise.resolve(existingPower),
-    fetchCurrentWeather(), // Open-Meteo is fast (~200ms), always fetch
-    fetchSunTimes(),       // Same API, fast
-    fetchWeatherWarnings(), // BOM RSS, fast
+    powerStale ? fetchPowerData().catch(() => null) : Promise.resolve(existingPower),
+    fetchCurrentWeather().catch(() => null),
+    fetchSunTimes().catch(() => null),
+    fetchWeatherWarnings().catch(() => []),
   ]);
 
   return NextResponse.json({
@@ -40,7 +42,7 @@ export async function GET() {
       gridW: power.gridW,
       genRunning: power.genRunning,
       genStatus: power.genStatus,
-      freshness: power.freshness,
+      freshness: String(power.freshness || "live"),
     } : null,
     weather: weather ? {
       temp: weather.temp,
