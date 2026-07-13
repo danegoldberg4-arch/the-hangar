@@ -126,6 +126,7 @@ export default async function MaintenancePage() {
                                 day: "numeric",
                                 month: "short",
                                 year: "numeric",
+                                timeZone: "UTC",
                               })}
                             </span>
                           )}

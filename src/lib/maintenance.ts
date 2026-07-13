@@ -1,3 +1,9 @@
+import {
+  DAY_IN_MS,
+  dateOnlyInTimeZone,
+  toUtcDateOnly,
+} from "./date-only";
+
 export type MaintenanceStatus =
   | "overdue"
   | "due_soon"
@@ -25,7 +31,8 @@ export interface MaintenanceItemWithStatus {
 export function calculateStatus(
   intervalDays: number,
   lastCompletedAt: Date | null,
-  nextDueAt: Date | null
+  nextDueAt: Date | null,
+  now = new Date()
 ): { status: MaintenanceStatus; daysUntilDue: number | null } {
   if (intervalDays === 0 && !nextDueAt) {
     return { status: "as_needed", daysUntilDue: null };
@@ -35,9 +42,9 @@ export function calculateStatus(
     return { status: "no_history", daysUntilDue: null };
   }
 
-  const now = new Date();
-  const diffMs = nextDueAt.getTime() - now.getTime();
-  const daysUntil = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  const today = dateOnlyInTimeZone(now);
+  const dueDate = toUtcDateOnly(nextDueAt);
+  const daysUntil = Math.round((dueDate.getTime() - today.getTime()) / DAY_IN_MS);
 
   if (daysUntil < 0) {
     return { status: "overdue", daysUntilDue: daysUntil };
@@ -55,8 +62,8 @@ export function computeNextDue(
   intervalDays: number
 ): Date | null {
   if (intervalDays === 0) return null;
-  const next = new Date(lastCompletedAt);
-  next.setDate(next.getDate() + intervalDays);
+  const next = toUtcDateOnly(lastCompletedAt);
+  next.setUTCDate(next.getUTCDate() + intervalDays);
   return next;
 }
 

@@ -1,6 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/api-auth";
+import {
+  apiError,
+  internalError,
+  readJsonObject,
+  validationError,
+} from "@/lib/api-response";
+import { validateRestockAction } from "@/lib/workflow-validation";
 
 export async function PATCH(
   request: NextRequest,
@@ -10,34 +17,44 @@ export async function PATCH(
   if (!access.ok) return access.response;
 
   const { id } = await ctx.params;
-  const body = await request.json();
-  const { action } = body;
+  const body = await readJsonObject(request);
+  if (!body.ok) return body.response;
 
-  if (action === "resolve") {
-    const item = await prisma.restockItem.update({
-      where: { id },
-      data: {
-        isResolved: true,
-        resolvedBy: access.user.name || "Unknown",
-        resolvedAt: new Date(),
-      },
+  const parsed = validateRestockAction(body.value);
+  if (!parsed.ok) return validationError(parsed.errors);
+  const resolvedBy = access.user.name || "Unknown";
+
+  try {
+    const item = await prisma.$transaction(async (tx) => {
+      await tx.restockItem.updateMany({
+        where: {
+          id,
+          isResolved: parsed.value === "unresolve",
+        },
+        data:
+          parsed.value === "resolve"
+            ? {
+                isResolved: true,
+                resolvedBy,
+                resolvedAt: new Date(),
+              }
+            : {
+                isResolved: false,
+                resolvedBy: null,
+                resolvedAt: null,
+              },
+      });
+
+      return tx.restockItem.findUnique({ where: { id } });
     });
-    return NextResponse.json(item);
-  }
 
-  if (action === "unresolve") {
-    const item = await prisma.restockItem.update({
-      where: { id },
-      data: {
-        isResolved: false,
-        resolvedBy: null,
-        resolvedAt: null,
-      },
-    });
+    if (!item) {
+      return apiError(404, "NOT_FOUND", "Restock item not found.");
+    }
     return NextResponse.json(item);
+  } catch (error) {
+    return internalError("update restock item", error);
   }
-
-  return NextResponse.json({ error: "Unknown action" }, { status: 400 });
 }
 
 export async function DELETE(
@@ -48,6 +65,13 @@ export async function DELETE(
   if (!access.ok) return access.response;
 
   const { id } = await ctx.params;
-  await prisma.restockItem.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
+  try {
+    const deleted = await prisma.restockItem.deleteMany({ where: { id } });
+    if (deleted.count === 0) {
+      return apiError(404, "NOT_FOUND", "Restock item not found.");
+    }
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return internalError("delete restock item", error);
+  }
 }

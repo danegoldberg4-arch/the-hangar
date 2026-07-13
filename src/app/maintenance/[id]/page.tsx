@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { calculateStatus, statusConfig, categoryConfig } from "@/lib/maintenance";
 import { LogForm } from "@/components/maintenance/log-form";
 import { EditForm } from "@/components/maintenance/edit-form";
+import { parseMaintenanceParts } from "@/lib/workflow-validation";
 
 export default async function MaintenanceDetailPage({
   params,
@@ -34,12 +35,7 @@ export default async function MaintenanceDetailPage({
   const s = statusConfig[status];
   const cat = categoryConfig[item.category] || categoryConfig.general;
 
-  let parsedParts: { name: string; partNumber?: string }[] = [];
-  try {
-    parsedParts = JSON.parse(item.parts);
-  } catch {
-    // ignore
-  }
+  const parsedParts = parseMaintenanceParts(item.parts);
 
   return (
     <div className="max-w-[1180px] mx-auto px-4 sm:px-8 w-full overflow-x-hidden py-8 sm:py-12">
@@ -104,6 +100,7 @@ export default async function MaintenanceDetailPage({
                         day: "numeric",
                         month: "short",
                         year: "numeric",
+                        timeZone: "UTC",
                       })
                     : "Never"}
                 </dd>
@@ -118,6 +115,7 @@ export default async function MaintenanceDetailPage({
                         day: "numeric",
                         month: "short",
                         year: "numeric",
+                        timeZone: "UTC",
                       })
                     : "Not scheduled"}
                 </dd>
@@ -162,26 +160,35 @@ export default async function MaintenanceDetailPage({
               <p className="text-galv-dim text-sm italic">No entries yet.</p>
             ) : (
               <div className="space-y-3">
-                {item.logs.map((log) => (
-                  <div
-                    key={log.id}
-                    className="border-l-2 border-iron/30 pl-4 py-1"
-                  >
-                    <div className="flex items-baseline justify-between gap-4">
-                      <span className="font-narrow uppercase tracking-wider text-xs text-iron font-bold">
-                        {new Date(log.completedAt).toLocaleDateString("en-AU", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </span>
-                      <span className="text-xs text-galv">{log.completedBy}</span>
+                {item.logs.map((log) => {
+                  const partsUsed = parseMaintenanceParts(log.partsUsed);
+                  return (
+                    <div
+                      key={log.id}
+                      className="border-l-2 border-iron/30 pl-4 py-1"
+                    >
+                      <div className="flex items-baseline justify-between gap-4">
+                        <span className="font-narrow uppercase tracking-wider text-xs text-iron font-bold">
+                          {new Date(log.completedAt).toLocaleDateString("en-AU", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                            timeZone: "UTC",
+                          })}
+                        </span>
+                        <span className="text-xs text-galv">{log.completedBy}</span>
+                      </div>
+                      {log.notes && (
+                        <p className="text-sm text-galv-dim mt-1">{log.notes}</p>
+                      )}
+                      {partsUsed.length > 0 && (
+                        <p className="font-narrow text-xs text-sand mt-1">
+                          Parts: {partsUsed.map((part) => part.name).join(", ")}
+                        </p>
+                      )}
                     </div>
-                    {log.notes && (
-                      <p className="text-sm text-galv-dim mt-1">{log.notes}</p>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -210,6 +217,7 @@ export default async function MaintenanceDetailPage({
                   intervalLabel={item.intervalLabel}
                   assignedTo={item.assignedTo}
                   notes={item.notes}
+                  parts={item.parts}
                   nextDueAt={item.nextDueAt?.toISOString() ?? null}
                 />
               </>
