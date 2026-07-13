@@ -3,7 +3,10 @@ import type { NextAuthConfig } from "next-auth";
 export const authConfig: NextAuthConfig = {
   session: {
     strategy: "jwt",
-    maxAge: 365 * 24 * 60 * 60,
+    maxAge: 7 * 24 * 60 * 60,
+  },
+  jwt: {
+    maxAge: 7 * 24 * 60 * 60,
   },
   pages: {
     signIn: "/login",
@@ -13,14 +16,14 @@ export const authConfig: NextAuthConfig = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = (user as { role?: string }).role || "family";
+        token.role = user.role || "family";
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as { id?: string }).id = token.id as string;
-        (session.user as { role?: string }).role = token.role as string;
+        session.user.id = typeof token.id === "string" ? token.id : "";
+        session.user.role = typeof token.role === "string" ? token.role : "family";
       }
       return session;
     },

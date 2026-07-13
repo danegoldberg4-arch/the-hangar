@@ -1,4 +1,13 @@
-export interface RainSummary {
+import {
+  FRESHNESS_THRESHOLDS,
+  observationMeta,
+  type ObservationMeta,
+} from "@/lib/integrations/freshness";
+import { fetchWithTimeout } from "@/lib/integrations/http";
+import { openMeteoObservedAt } from "@/lib/integrations/open-meteo";
+import { dateKeyInTimeZone } from "@/lib/time";
+
+export interface RainSummary extends ObservationMeta {
   today: number;
   week: number;
   month: number;
@@ -8,37 +17,52 @@ export interface RainSummary {
 const LAT = -34.73;
 const LON = 150.48;
 
-export async function getRainSummary(): Promise<RainSummary> {
+function sydneyDateKey(date: Date): string {
+  return dateKeyInTimeZone(date, "Australia/Sydney");
+}
+
+export async function getRainSummary(): Promise<RainSummary | null> {
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&daily=precipitation_sum&timezone=Australia/Sydney&forecast_days=1&past_days=30`;
-
-    const res = await fetch(url, { next: { revalidate: 0 } });
-
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&daily=precipitation_sum&current=temperature_2m&timezone=Australia/Sydney&forecast_days=1&past_days=30`;
+    const res = await fetchWithTimeout(url, { next: { revalidate: 0 } });
     if (!res.ok) {
-      return { today: 0, week: 0, month: 0, dailyHistory: [] };
+      console.error(`[rain] Open-Meteo request failed: HTTP ${res.status}`);
+      return null;
     }
 
     const data = await res.json();
+    const times: unknown = data?.daily?.time;
+    const precipitation: unknown = data?.daily?.precipitation_sum;
+    if (!Array.isArray(times) || !Array.isArray(precipitation)) return null;
 
-    const times: string[] = data.daily.time;
-    const precip: number[] = data.daily.precipitation_sum;
+    const dailyHistory = times.flatMap((date, index) => {
+      const total = precipitation[index];
+      return typeof date === "string" && typeof total === "number" && Number.isFinite(total)
+        ? [{ date, total }]
+        : [];
+    });
+    if (dailyHistory.length === 0) return null;
 
-    const dailyHistory = times.map((date, i) => ({
-      date,
-      total: precip[i] ?? 0,
-    }));
+    const todayKey = sydneyDateKey(new Date());
+    const todayReading = dailyHistory.find((reading) => reading.date === todayKey);
+    if (!todayReading) return null;
 
-    const today = dailyHistory[dailyHistory.length - 1]?.total ?? 0;
-
-    const last7 = dailyHistory.slice(-7);
-    const week = last7.reduce((sum, d) => sum + d.total, 0);
-
-    const last30 = dailyHistory.slice(-30);
-    const month = last30.reduce((sum, d) => sum + d.total, 0);
-
-    return { today, week, month, dailyHistory };
-  } catch (err) {
-    console.error("[rain] fetch error:", err);
-    return { today: 0, week: 0, month: 0, dailyHistory: [] };
+    const sum = (days: number) =>
+      dailyHistory.slice(-days).reduce((total, reading) => total + reading.total, 0);
+    const observedAt = openMeteoObservedAt(data?.current?.time, data?.utc_offset_seconds);
+    if (!observedAt) {
+      console.error("[rain] Open-Meteo response had no valid source timestamp");
+      return null;
+    }
+    return {
+      today: todayReading.total,
+      week: sum(7),
+      month: sum(30),
+      dailyHistory,
+      ...observationMeta(observedAt, FRESHNESS_THRESHOLDS.rain),
+    };
+  } catch (error) {
+    console.error("[rain] Fetch error:", error);
+    return null;
   }
 }

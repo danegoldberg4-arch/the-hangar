@@ -1,69 +1,78 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/api-auth";
+import {
+  internalError,
+  readJsonObject,
+  validationError,
+} from "@/lib/api-response";
+import { parseDateOnly, validateVisitCreate } from "@/lib/workflow-validation";
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+function formatUtcDate(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+export async function GET(request: NextRequest) {
+  const access = await requireUser();
+  if (!access.ok) return access.response;
 
   const now = new Date();
-  const threeMonthsAgo = new Date(now);
-  threeMonthsAgo.setMonth(now.getMonth() - 3);
+  const defaultFrom = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const defaultTo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
+  const fromValue = request.nextUrl.searchParams.get("from") ?? formatUtcDate(defaultFrom);
+  const toValue = request.nextUrl.searchParams.get("to") ?? formatUtcDate(defaultTo);
+  const from = parseDateOnly(fromValue);
+  const to = parseDateOnly(toValue);
 
-  const threeMonthsAhead = new Date(now);
-  threeMonthsAhead.setMonth(now.getMonth() + 3);
+  const rangeErrors: Record<string, string> = {};
+  if (!from) rangeErrors.from = "from must be a real date in YYYY-MM-DD format.";
+  if (!to) rangeErrors.to = "to must be a real date in YYYY-MM-DD format.";
+  if (from && to && to < from) rangeErrors.to = "to must be on or after from.";
+  if (from && to && to.getTime() - from.getTime() > 365 * 86_400_000) {
+    rangeErrors.to = "The requested visit range cannot exceed 366 days.";
+  }
+  if (Object.keys(rangeErrors).length > 0) return validationError(rangeErrors);
 
-  const visits = await prisma.visit.findMany({
-    where: {
-      OR: [
-        { startDate: { gte: threeMonthsAgo, lte: threeMonthsAhead } },
-        { endDate: { gte: threeMonthsAgo, lte: threeMonthsAhead } },
-      ],
-    },
-    orderBy: { startDate: "asc" },
-  });
+  const inclusiveTo = new Date(to!);
+  inclusiveTo.setUTCHours(23, 59, 59, 999);
 
-  return NextResponse.json(visits);
+  try {
+    const visits = await prisma.visit.findMany({
+      where: {
+        // A visit overlaps the requested inclusive date range when it starts
+        // before the range ends and ends after the range starts.
+        startDate: { lte: inclusiveTo },
+        endDate: { gte: from! },
+      },
+      orderBy: { startDate: "asc" },
+    });
+
+    return NextResponse.json(visits);
+  } catch (error) {
+    return internalError("list visits", error);
+  }
 }
 
 export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const access = await requireUser();
+  if (!access.ok) return access.response;
+
+  const body = await readJsonObject(request);
+  if (!body.ok) return body.response;
+
+  const parsed = validateVisitCreate(body.value);
+  if (!parsed.ok) return validationError(parsed.errors);
+
+  try {
+    const visit = await prisma.visit.create({
+      data: {
+        userId: access.user.id,
+        ...parsed.value,
+      },
+    });
+
+    return NextResponse.json(visit, { status: 201 });
+  } catch (error) {
+    return internalError("create visit", error);
   }
-
-  const body = await request.json();
-  const { visitorName, startDate, endDate, notes, bringing } = body;
-
-  if (!visitorName?.trim() || !startDate || !endDate) {
-    return NextResponse.json(
-      { error: "visitorName, startDate, and endDate are required" },
-      { status: 400 }
-    );
-  }
-
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-
-  if (end < start) {
-    return NextResponse.json(
-      { error: "End date must be after start date" },
-      { status: 400 }
-    );
-  }
-
-  const visit = await prisma.visit.create({
-    data: {
-      userId: (session.user as { id?: string }).id || null,
-      visitorName: visitorName.trim(),
-      startDate: start,
-      endDate: end,
-      notes: notes?.trim() || "",
-      bringing: bringing?.trim() || "",
-    },
-  });
-
-  return NextResponse.json(visit, { status: 201 });
 }

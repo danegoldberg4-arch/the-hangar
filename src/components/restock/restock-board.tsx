@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
+import { getApiError } from "@/lib/api-client";
 
 interface RestockItem {
   id: string;
@@ -33,6 +34,16 @@ const categoryColors: Record<string, string> = {
   general: "text-galv border-line bg-steel-2",
 };
 
+async function fetchRestockItems(signal?: AbortSignal) {
+  const res = await fetch("/api/restock?includeResolved=true&resolvedLimit=20", {
+    signal,
+  });
+  if (!res.ok) throw new Error(await getApiError(res, "Could not load the restock list."));
+  const data: unknown = await res.json();
+  if (!Array.isArray(data)) throw new Error("The restock list returned an invalid response.");
+  return data as RestockItem[];
+}
+
 export function RestockBoard() {
   const { data: session } = useSession();
   const [items, setItems] = useState<RestockItem[]>([]);
@@ -42,27 +53,85 @@ export function RestockBoard() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showResolved, setShowResolved] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [mutationError, setMutationError] = useState("");
+  const [pendingItemIds, setPendingItemIds] = useState<Set<string>>(
+    () => new Set()
+  );
+  const [undoItem, setUndoItem] = useState<RestockItem | null>(null);
+  const loadToken = useRef<symbol | null>(null);
+  const loadController = useRef<AbortController | null>(null);
 
   const loadItems = useCallback(async () => {
+    const token = Symbol("restock-load");
+    loadToken.current = token;
+    loadController.current?.abort();
+    const controller = new AbortController();
+    loadController.current = controller;
+    setLoading(true);
+    setLoadError("");
     try {
-      const res = await fetch("/api/restock");
-      if (res.ok) {
-        const data = await res.json();
-        setItems(data);
-      }
+      const data = await fetchRestockItems(controller.signal);
+      if (loadToken.current !== token) return;
+      setItems(data);
+    } catch (error) {
+      if (controller.signal.aborted || loadToken.current !== token) return;
+      setItems([]);
+      setLoadError(error instanceof Error ? error.message : "Could not load the restock list.");
     } finally {
-      setLoading(false);
+      if (loadToken.current === token) {
+        loadToken.current = null;
+        loadController.current = null;
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
-    loadItems();
-  }, [loadItems]);
+    const token = Symbol("restock-initial-load");
+    loadToken.current = token;
+    loadController.current?.abort();
+    const controller = new AbortController();
+    loadController.current = controller;
+    void fetchRestockItems(controller.signal)
+      .then((data) => {
+        if (loadToken.current !== token) return;
+        setItems(data);
+        setLoadError("");
+      })
+      .catch((error) => {
+        if (controller.signal.aborted || loadToken.current !== token) return;
+        setItems([]);
+        setLoadError(error instanceof Error ? error.message : "Could not load the restock list.");
+      })
+      .finally(() => {
+        if (loadToken.current === token) {
+          loadToken.current = null;
+          loadController.current = null;
+          setLoading(false);
+        }
+      });
+    return () => {
+      loadToken.current = null;
+      loadController.current?.abort();
+      loadController.current = null;
+    };
+  }, []);
+
+  function setItemPending(id: string, pending: boolean) {
+    setPendingItemIds((current) => {
+      const next = new Set(current);
+      if (pending) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
     setSubmitting(true);
+    setMutationError("");
 
     try {
       const res = await fetch("/api/restock", {
@@ -71,32 +140,62 @@ export function RestockBoard() {
         body: JSON.stringify({ name, note, category }),
       });
 
-      if (res.ok) {
-        setName("");
-        setNote("");
-        setCategory("general");
-        await loadItems();
-      }
+      if (!res.ok) throw new Error(await getApiError(res, "Could not add the item."));
+      setName("");
+      setNote("");
+      setCategory("general");
+      await loadItems();
+    } catch (error) {
+      setMutationError(error instanceof Error ? error.message : "Could not add the item.");
     } finally {
       setSubmitting(false);
     }
   }
 
-  async function resolveItem(id: string) {
-    const res = await fetch(`/api/restock/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "resolve" }),
-    });
+  async function changeResolution(item: RestockItem, action: "resolve" | "unresolve") {
+    setItemPending(item.id, true);
+    setMutationError("");
+    try {
+      const res = await fetch(`/api/restock/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (!res.ok) {
+        throw new Error(
+          await getApiError(
+            res,
+            action === "resolve" ? "Could not mark the item as brought." : "Could not restore the item."
+          )
+        );
+      }
 
-    if (res.ok) {
+      setUndoItem(action === "resolve" ? item : null);
       await loadItems();
+    } catch (error) {
+      setMutationError(error instanceof Error ? error.message : "Could not update the item.");
+    } finally {
+      setItemPending(item.id, false);
     }
   }
 
-  async function deleteItem(id: string) {
-    await fetch(`/api/restock/${id}`, { method: "DELETE" });
-    await loadItems();
+  async function deleteItem(item: RestockItem) {
+    if (!window.confirm(`Delete "${item.name}" from the restock list? This cannot be undone.`)) {
+      return;
+    }
+
+    setItemPending(item.id, true);
+    setMutationError("");
+    try {
+      const res = await fetch(`/api/restock/${item.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(await getApiError(res, "Could not delete the item."));
+      if (undoItem?.id === item.id) setUndoItem(null);
+      await loadItems();
+    } catch (error) {
+      setMutationError(error instanceof Error ? error.message : "Could not delete the item.");
+    } finally {
+      setItemPending(item.id, false);
+    }
   }
 
   const active = items.filter((i) => !i.isResolved);
@@ -113,6 +212,7 @@ export function RestockBoard() {
             onChange={(e) => setName(e.target.value)}
             placeholder="What's run out? e.g. Tomato sauce, Coffee beans, Dishwasher tablets..."
             required
+            maxLength={160}
             className="flex-1 bg-steel-3 border border-line rounded-lg px-4 py-2.5 text-paper text-sm focus:border-iron focus:outline-none transition-colors"
           />
           <select
@@ -131,6 +231,7 @@ export function RestockBoard() {
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="Optional note (brand, size, where to buy...)"
+            maxLength={1000}
             className="flex-1 bg-steel-3 border border-line rounded-lg px-4 py-2.5 text-paper text-sm focus:border-iron focus:outline-none transition-colors"
           />
           <button
@@ -143,6 +244,26 @@ export function RestockBoard() {
         </div>
       </form>
 
+      {mutationError && (
+        <div role="alert" className="bg-iron/5 border border-iron/20 text-iron text-sm rounded p-3">
+          {mutationError}
+        </div>
+      )}
+
+      {undoItem && (
+        <div className="border border-green-900/30 bg-green-950/20 text-green-400 rounded p-3 flex items-center justify-between gap-3 text-sm">
+          <span>{undoItem.name} marked as brought.</span>
+          <button
+            type="button"
+            onClick={() => changeResolution(undoItem, "unresolve")}
+            disabled={pendingItemIds.has(undoItem.id)}
+            className="font-narrow uppercase tracking-wider text-xs font-bold hover:text-paper disabled:opacity-50"
+          >
+            Undo
+          </button>
+        </div>
+      )}
+
       {/* Active items */}
       <div>
         <h3 className="font-narrow uppercase tracking-wider text-sm font-bold text-galv mb-3">
@@ -150,6 +271,17 @@ export function RestockBoard() {
         </h3>
         {loading ? (
           <p className="text-galv text-sm">Loading...</p>
+        ) : loadError ? (
+          <div role="alert" className="card-surface border-iron/20 p-5">
+            <p className="text-iron text-sm">{loadError}</p>
+            <button
+              type="button"
+              onClick={() => loadItems()}
+              className="font-narrow uppercase tracking-wider text-xs text-galv hover:text-paper mt-3"
+            >
+              Retry
+            </button>
+          </div>
         ) : active.length === 0 ? (
           <div className="card-surface p-6 text-center">
             <p className="text-galv-dim text-sm">
@@ -180,7 +312,8 @@ export function RestockBoard() {
                 <div className="flex items-center gap-2 shrink-0">
                   {session?.user && (
                     <button
-                      onClick={() => resolveItem(item.id)}
+                      onClick={() => changeResolution(item, "resolve")}
+                      disabled={pendingItemIds.has(item.id)}
                       className="font-narrow uppercase tracking-wider text-[0.65rem] font-bold text-green-400 border border-green-900/30 hover:bg-green-950/30 px-3 py-1.5 rounded transition-colors"
                       title="Mark as brought"
                     >
@@ -188,9 +321,11 @@ export function RestockBoard() {
                     </button>
                   )}
                   <button
-                    onClick={() => deleteItem(item.id)}
+                    onClick={() => deleteItem(item)}
+                    disabled={pendingItemIds.has(item.id)}
                     className="text-galv-dim hover:text-iron transition-colors text-xs px-1"
                     title="Delete"
+                    aria-label={`Delete ${item.name}`}
                   >
                     ×
                   </button>
@@ -202,7 +337,7 @@ export function RestockBoard() {
       </div>
 
       {/* Resolved items */}
-      {resolved.length > 0 && (
+      {!loading && !loadError && resolved.length > 0 && (
         <div>
           <button
             onClick={() => setShowResolved(!showResolved)}
@@ -212,16 +347,24 @@ export function RestockBoard() {
           </button>
           {showResolved && (
             <div className="space-y-1">
-              {resolved.slice(0, 10).map((item) => (
+              {resolved.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center gap-3 text-sm text-galv-dim py-1.5 px-3"
+                  className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-galv-dim py-1.5 px-3"
                 >
                   <span className="text-green-400">✓</span>
                   <span className="line-through">{item.name}</span>
-                  <span className="ml-auto font-narrow uppercase tracking-wider text-[0.6rem]">
+                  <span className="sm:ml-auto font-narrow uppercase tracking-wider text-[0.6rem]">
                     Brought by {item.resolvedBy} · {timeAgo(new Date(item.resolvedAt!))}
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => changeResolution(item, "unresolve")}
+                    disabled={pendingItemIds.has(item.id)}
+                    className="font-narrow uppercase tracking-wider text-[0.6rem] text-iron hover:text-iron-lt disabled:opacity-50"
+                  >
+                    Undo
+                  </button>
                 </div>
               ))}
             </div>

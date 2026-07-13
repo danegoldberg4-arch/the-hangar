@@ -2,8 +2,12 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { seedItems } from "@/lib/seed-data";
 import { computeNextDue } from "@/lib/maintenance";
+import { requireAdmin } from "@/lib/api-auth";
 
 export async function POST() {
+  const access = await requireAdmin();
+  if (!access.ok) return access.response;
+
   const existing = await prisma.maintenanceItem.count();
   if (existing > 0) {
     return NextResponse.json(

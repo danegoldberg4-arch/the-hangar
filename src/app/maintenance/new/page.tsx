@@ -1,8 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { PartsEditor } from "@/components/maintenance/parts-editor";
+import { getApiError } from "@/lib/api-client";
+import type { MaintenancePart } from "@/lib/workflow-validation";
 
 const categories = [
   { value: "water", label: "Water" },
@@ -18,6 +22,7 @@ const categories = [
 
 export default function NewMaintenanceItemPage() {
   const router = useRouter();
+  const { data: session, status } = useSession();
   const [name, setName] = useState("");
   const [category, setCategory] = useState("general");
   const [description, setDescription] = useState("");
@@ -25,11 +30,28 @@ export default function NewMaintenanceItemPage() {
   const [intervalLabel, setIntervalLabel] = useState("As needed");
   const [assignedTo, setAssignedTo] = useState("");
   const [notes, setNotes] = useState("");
+  const [parts, setParts] = useState<MaintenancePart[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (status === "authenticated" && session.user.role !== "admin") {
+      router.replace("/maintenance");
+    }
+  }, [router, session, status]);
+
+  if (status !== "authenticated" || session.user.role !== "admin") {
+    return null;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const parsedInterval = Number(intervalDays);
+    if (!Number.isInteger(parsedInterval) || parsedInterval < 0) {
+      setError("Interval must be a whole number of days.");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -41,16 +63,16 @@ export default function NewMaintenanceItemPage() {
           name,
           category,
           description,
-          intervalDays: parseInt(intervalDays) || 0,
+          intervalDays: parsedInterval,
           intervalLabel,
           assignedTo,
           notes,
+          parts,
         }),
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || "Failed to create item");
+        setError(await getApiError(res, "Failed to create maintenance item."));
         return;
       }
 
@@ -86,6 +108,7 @@ export default function NewMaintenanceItemPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
+            maxLength={160}
             placeholder="e.g. Pool pump service"
             className="w-full bg-steel-3 border border-line rounded-lg px-4 py-2.5 text-paper text-sm focus:border-iron focus:outline-none transition-colors"
           />
@@ -115,6 +138,7 @@ export default function NewMaintenanceItemPage() {
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
+            maxLength={2000}
             rows={3}
             placeholder="What needs to be done..."
             className="w-full bg-steel-3 border border-line rounded-lg px-4 py-2.5 text-paper text-sm focus:border-iron focus:outline-none transition-colors resize-none"
@@ -143,6 +167,7 @@ export default function NewMaintenanceItemPage() {
               type="text"
               value={intervalLabel}
               onChange={(e) => setIntervalLabel(e.target.value)}
+              maxLength={120}
               placeholder="e.g. Every 3 months"
               className="w-full bg-steel-3 border border-line rounded-lg px-4 py-2.5 text-paper text-sm focus:border-iron focus:outline-none transition-colors"
             />
@@ -155,8 +180,9 @@ export default function NewMaintenanceItemPage() {
           </label>
           <input
             type="text"
-            value={assignedTo}
-            onChange={(e) => setAssignedTo(e.target.value)}
+          value={assignedTo}
+          onChange={(e) => setAssignedTo(e.target.value)}
+          maxLength={160}
             placeholder="e.g. Owner, Sebastian, Technician..."
             className="w-full bg-steel-3 border border-line rounded-lg px-4 py-2.5 text-paper text-sm focus:border-iron focus:outline-none transition-colors"
           />
@@ -169,11 +195,14 @@ export default function NewMaintenanceItemPage() {
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
+            maxLength={5000}
             rows={2}
             placeholder="Additional notes, part numbers, reminders..."
             className="w-full bg-steel-3 border border-line rounded-lg px-4 py-2.5 text-paper text-sm focus:border-iron focus:outline-none transition-colors resize-none"
           />
         </div>
+
+        <PartsEditor parts={parts} onChange={setParts} disabled={loading} />
 
         {error && (
           <div className="bg-iron/5 border border-iron/20 text-iron text-sm rounded p-3">

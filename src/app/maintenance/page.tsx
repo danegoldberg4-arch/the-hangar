@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   calculateStatus,
@@ -8,6 +9,9 @@ import {
 } from "@/lib/maintenance";
 
 export default async function MaintenancePage() {
+  const session = await auth();
+  const isAdmin = session?.user?.role === "admin";
+
   const items = await prisma.maintenanceItem.findMany({
     where: { isActive: true },
     include: {
@@ -69,12 +73,14 @@ export default async function MaintenancePage() {
             Maintenance Schedule
           </h1>
         </div>
-        <Link
-          href="/maintenance/new"
-          className="font-narrow uppercase tracking-wider text-xs font-bold text-steel bg-sand px-4 py-2 rounded-md hover:bg-paper transition-colors"
-        >
-          + Add Item
-        </Link>
+        {isAdmin && (
+          <Link
+            href="/maintenance/new"
+            className="font-narrow uppercase tracking-wider text-xs font-bold text-steel bg-sand px-4 py-2 rounded-md hover:bg-paper transition-colors"
+          >
+            + Add Item
+          </Link>
+        )}
       </div>
 
       <p className="lead text-galv-dim max-w-2xl mb-8">
@@ -120,6 +126,7 @@ export default async function MaintenancePage() {
                                 day: "numeric",
                                 month: "short",
                                 year: "numeric",
+                                timeZone: "UTC",
                               })}
                             </span>
                           )}

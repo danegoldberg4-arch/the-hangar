@@ -1,5 +1,6 @@
 import { fetchForecast, getWeatherLabel } from "@/lib/integrations/forecast";
 import { WeatherIcon } from "@/components/weather/weather-icon";
+import { freshnessLabel } from "@/lib/integrations/freshness";
 
 const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -18,7 +19,7 @@ export async function ForecastWidget() {
           <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
           <h3 className="font-narrow uppercase tracking-wider text-xs font-bold text-galv">Forecast</h3>
         </div>
-        <p className="text-xs text-galv-dim">Fetching forecast...</p>
+          <p className="text-xs text-galv-dim">Forecast is unavailable.</p>
       </div>
     );
   }
@@ -30,11 +31,11 @@ export async function ForecastWidget() {
     <div className="card-surface p-4 sm:p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+          <span className={`w-1.5 h-1.5 rounded-full ${forecast.freshness === "live" ? "bg-sky-400" : "bg-galv-dim"}`} />
           <h3 className="font-narrow uppercase tracking-wider text-xs font-bold text-galv">Forecast</h3>
         </div>
-        <span className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">
-          Upper Kangaroo River
+        <span className={`font-narrow uppercase tracking-wider text-[0.55rem] ${forecast.freshness === "live" ? "text-green-400" : "text-galv-dim"}`}>
+          {freshnessLabel(forecast)}
         </span>
       </div>
 
@@ -59,12 +60,12 @@ export async function ForecastWidget() {
       <div className="h-px bg-line mb-3" />
       <div className="grid grid-cols-4 gap-1 sm:gap-2">
         {futureDays.map((day) => {
-          const date = new Date(day.date);
+          const dayIndex = new Date(`${day.date}T00:00:00Z`).getUTCDay();
           const isTomorrow = day === futureDays[0];
           return (
             <div key={day.date} className="text-center">
               <div className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">
-                {isTomorrow ? "Tom" : dayNames[date.getDay()]}
+                {isTomorrow ? "Tom" : dayNames[dayIndex]}
               </div>
               <div className="text-galv-dim w-6 h-6 mx-auto my-1">
                 <WeatherIcon code={day.weatherCode} />

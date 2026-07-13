@@ -1,19 +1,23 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { dateOnlyInTimeZone } from "@/lib/workflow-validation";
 
 export async function VisitSummary() {
-  const now = new Date();
+  const today = dateOnlyInTimeZone();
+  const tomorrow = new Date(today);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  const todayEnd = new Date(tomorrow.getTime() - 1);
 
   const upcoming = await prisma.visit.findMany({
-    where: { endDate: { gte: now } },
+    where: { endDate: { gte: today } },
     orderBy: { startDate: "asc" },
     take: 3,
   });
 
   const atHouse = await prisma.visit.findMany({
     where: {
-      startDate: { lte: now },
-      endDate: { gte: now },
+      startDate: { lte: todayEnd },
+      endDate: { gte: today },
     },
   });
 
@@ -45,8 +49,11 @@ export async function VisitSummary() {
       ) : (
         <div className="space-y-2">
           {upcoming.map((v) => {
-            const isNow = new Date(v.startDate) <= now && new Date(v.endDate) >= now;
-            const daysUntil = Math.ceil((new Date(v.startDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+            const isNow = new Date(v.startDate) <= todayEnd && new Date(v.endDate) >= today;
+            const daysUntil = Math.round(
+              (new Date(v.startDate).getTime() - today.getTime()) /
+                (1000 * 60 * 60 * 24)
+            );
             return (
               <div key={v.id} className="flex items-center justify-between">
                 <div className="flex items-center gap-2 min-w-0">

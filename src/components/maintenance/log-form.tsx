@@ -1,7 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { getApiError } from "@/lib/api-client";
+import { dateOnlyInTimeZone, formatUtcDateOnly } from "@/lib/date-only";
+import { parseMaintenanceParts } from "@/lib/workflow-validation";
 
 interface LogFormProps {
   itemId: string;
@@ -12,14 +15,27 @@ interface LogFormProps {
 export function LogForm({ itemId, parts, userName }: LogFormProps) {
   const router = useRouter();
   const [notes, setNotes] = useState("");
+  const [completedAt, setCompletedAt] = useState(() =>
+    formatUtcDateOnly(dateOnlyInTimeZone())
+  );
+  const [partSelection, setPartSelection] = useState({
+    source: parts,
+    indexes: [] as number[],
+  });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  let parsedParts: { name: string; partNumber?: string }[] = [];
-  try {
-    parsedParts = JSON.parse(parts);
-  } catch {
-    // ignore
+  const parsedParts = useMemo(() => parseMaintenanceParts(parts), [parts]);
+  const selectedPartIndexes =
+    partSelection.source === parts ? partSelection.indexes : [];
+
+  function togglePart(index: number) {
+    setPartSelection({
+      source: parts,
+      indexes: selectedPartIndexes.includes(index)
+        ? selectedPartIndexes.filter((partIndex) => partIndex !== index)
+        : [...selectedPartIndexes, index],
+    });
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -33,16 +49,17 @@ export function LogForm({ itemId, parts, userName }: LogFormProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           notes: notes.trim(),
-          partsUsed: parts,
+          completedAt,
+          partsUsed: selectedPartIndexes.map((index) => parsedParts[index]),
         }),
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to log");
+        throw new Error(await getApiError(res, "Failed to log completion."));
       }
 
       setNotes("");
+      setPartSelection({ source: parts, indexes: [] });
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -56,21 +73,48 @@ export function LogForm({ itemId, parts, userName }: LogFormProps) {
       {parsedParts.length > 0 && (
         <div className="bg-steel-3 border border-line rounded-lg p-3">
           <p className="font-narrow uppercase tracking-wider text-[0.65rem] text-galv-dim mb-2">
-            Parts for this task
+            Parts used
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div className="space-y-2">
             {parsedParts.map((part, i) => (
-              <span
+              <label
                 key={i}
-                className="font-narrow text-xs bg-steel-3 text-sand px-2 py-1 rounded tracking-wide"
+                className="flex items-center gap-2 font-narrow text-xs text-sand cursor-pointer"
               >
-                {part.name}
-                {part.partNumber && ` · ${part.partNumber}`}
-              </span>
+                <input
+                  type="checkbox"
+                  checked={selectedPartIndexes.includes(i)}
+                  onChange={() => togglePart(i)}
+                  disabled={submitting}
+                  className="accent-current"
+                />
+                <span>
+                  {part.name}
+                  {part.partNumber && ` / ${part.partNumber}`}
+                </span>
+              </label>
             ))}
           </div>
         </div>
       )}
+
+      <div>
+        <label
+          htmlFor={`completion-date-${itemId}`}
+          className="font-narrow uppercase tracking-wider text-xs text-galv-dim block mb-1"
+        >
+          Completed on
+        </label>
+        <input
+          id={`completion-date-${itemId}`}
+          type="date"
+          value={completedAt}
+          onChange={(event) => setCompletedAt(event.target.value)}
+          required
+          disabled={submitting}
+          className="w-full bg-steel-3 border border-line rounded-lg px-4 py-2.5 text-paper text-sm focus:border-iron focus:outline-none"
+        />
+      </div>
 
       <div>
         <label className="font-narrow uppercase tracking-wider text-xs text-galv-dim block mb-1">
@@ -88,6 +132,7 @@ export function LogForm({ itemId, parts, userName }: LogFormProps) {
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
+          maxLength={5000}
           placeholder="What was done, any issues, parts replaced..."
           rows={3}
           className="w-full bg-steel-3 border border-line rounded-lg px-4 py-2.5 text-paper text-sm focus:border-iron focus:outline-none transition-colors resize-none"

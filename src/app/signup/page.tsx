@@ -117,26 +117,27 @@ export default function SignupPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={6}
-                placeholder="Min 6 characters"
+                minLength={12}
+                maxLength={72}
+                placeholder="12 characters minimum"
                 className="w-full bg-steel-3 border border-line rounded-lg px-4 py-2.5 text-paper text-sm focus:border-iron focus:outline-none transition-colors"
               />
             </div>
             <div>
               <label htmlFor="invite-code" className="font-narrow uppercase tracking-wider text-xs text-galv-dim block mb-1">
-                Invite code
+                Registration code
               </label>
               <input
-                type="text"
+                type="password"
                 id="invite-code"
                 autoComplete="off"
                 value={inviteCode}
                 onChange={(e) => setInviteCode(e.target.value)}
-                placeholder="Family code"
+                placeholder="Private code"
                 className="w-full bg-steel-3 border border-line rounded-lg px-4 py-2.5 text-paper text-sm focus:border-iron focus:outline-none transition-colors"
               />
               <p className="text-xs text-galv-dim mt-1">
-                First person to sign up doesn&apos;t need a code.
+                Ask the family admin for a code. The initial admin uses the private bootstrap code.
               </p>
             </div>
             <button

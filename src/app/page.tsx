@@ -80,10 +80,10 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {/* Live Monitoring */}
+      {/* System Monitoring */}
       <div className="mb-8">
         <h2 className="font-narrow uppercase tracking-[0.15em] text-sm font-bold text-galv-dim mb-4">
-          Live Monitoring
+          System Monitoring
         </h2>
         <Suspense fallback={<div className="card-surface p-4 sm:p-5 text-sm text-galv-dim">Loading monitoring data...</div>}>
           <MonitoringPanel />
@@ -162,7 +162,7 @@ export default async function DashboardPage() {
       {/* Footer */}
       <div className="border-t border-line pt-6">
         <p className="text-xs text-galv-dim">
-          <span className="font-narrow uppercase tracking-wider text-galv">The Hangar</span> · Protohouse No. V · 38E Scotts Rd · Upper Kangaroo River NSW 2577
+          <span className="font-narrow uppercase tracking-wider text-galv">The Hangar</span> · Protohouse No. V · Upper Kangaroo River NSW
         </p>
       </div>
     </div>

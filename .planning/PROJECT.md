@@ -11,7 +11,7 @@ Know exactly what's happening at the house from anywhere, and never miss a maint
 ## The Property
 
 - **Name:** The Hangar (Protohouse No. V)
-- **Location:** 38E Scotts Road, Upper Kangaroo River, NSW 2577
+- **Location:** Upper Kangaroo River, NSW
 - **Type:** Off-grid, 15 kW solar + 26 kWh battery, Generac 8 kVA LPG backup generator
 - **Water:** Rain + spring, 2x ~11,000 L tanks, Puretec Hybrid G6 UV filtration
 - **Gas:** 4x 45 kg LPG + 1 reserve, auto-changeover (hot water + heating)

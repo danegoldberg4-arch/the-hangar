@@ -2,6 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { PartsEditor } from "@/components/maintenance/parts-editor";
+import { getApiError } from "@/lib/api-client";
+import { formatUtcDateOnly } from "@/lib/date-only";
+import {
+  parseMaintenanceParts,
+  type MaintenancePart,
+} from "@/lib/workflow-validation";
 
 interface EditFormProps {
   itemId: string;
@@ -12,6 +19,7 @@ interface EditFormProps {
   intervalLabel: string;
   assignedTo: string;
   notes: string;
+  parts: string;
   nextDueAt: string | null;
 }
 
@@ -27,11 +35,8 @@ const categories = [
   { value: "general", label: "General" },
 ];
 
-function formatDateLocal(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+function serializedDueDate(value: string | null) {
+  return value ? formatUtcDateOnly(new Date(value)) : "";
 }
 
 export function EditForm(props: EditFormProps) {
@@ -44,13 +49,23 @@ export function EditForm(props: EditFormProps) {
   const [intervalLabel, setIntervalLabel] = useState(props.intervalLabel);
   const [assignedTo, setAssignedTo] = useState(props.assignedTo);
   const [notes, setNotes] = useState(props.notes);
-  const [dueDate, setDueDate] = useState(
-    props.nextDueAt ? formatDateLocal(new Date(props.nextDueAt)) : ""
+  const [parts, setParts] = useState<MaintenancePart[]>(() =>
+    parseMaintenanceParts(props.parts)
   );
+  const initialDueDate = serializedDueDate(props.nextDueAt);
+  const [dueDate, setDueDate] = useState(initialDueDate);
+  const [dueDateDirty, setDueDateDirty] = useState(false);
+  const displayedDueDate = dueDateDirty ? dueDate : initialDueDate;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   async function handleSave() {
+    const parsedInterval = Number(intervalDays);
+    if (!Number.isInteger(parsedInterval) || parsedInterval < 0) {
+      setError("Interval must be a whole number of days.");
+      return;
+    }
+
     setSaving(true);
     setError("");
 
@@ -59,16 +74,15 @@ export function EditForm(props: EditFormProps) {
         name,
         category,
         description,
-        intervalDays: parseInt(intervalDays) || 0,
+        intervalDays: parsedInterval,
         intervalLabel,
         assignedTo,
         notes,
+        parts,
       };
 
-      if (dueDate) {
-        body.nextDueAt = new Date(dueDate).toISOString();
-      } else if (props.nextDueAt) {
-        body.nextDueAt = null;
+      if (dueDateDirty) {
+        body.nextDueAt = displayedDueDate || null;
       }
 
       const res = await fetch(`/api/maintenance/${props.itemId}`, {
@@ -78,11 +92,12 @@ export function EditForm(props: EditFormProps) {
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || "Failed to save");
+        setError(await getApiError(res, "Failed to save maintenance details."));
         return;
       }
 
+      setDueDate(displayedDueDate);
+      setDueDateDirty(false);
       setEditing(false);
       router.refresh();
     } catch {
@@ -100,7 +115,9 @@ export function EditForm(props: EditFormProps) {
     setIntervalLabel(props.intervalLabel);
     setAssignedTo(props.assignedTo);
     setNotes(props.notes);
-    setDueDate(props.nextDueAt ? formatDateLocal(new Date(props.nextDueAt)) : "");
+    setParts(parseMaintenanceParts(props.parts));
+    setDueDate(initialDueDate);
+    setDueDateDirty(false);
     setEditing(false);
     setError("");
   }
@@ -130,6 +147,7 @@ export function EditForm(props: EditFormProps) {
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
+          maxLength={160}
           className="w-full bg-steel-3 border border-line rounded-lg px-3 py-2 text-paper text-sm focus:border-iron focus:outline-none transition-colors"
         />
       </div>
@@ -152,6 +170,7 @@ export function EditForm(props: EditFormProps) {
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
+          maxLength={2000}
           rows={2}
           className="w-full bg-steel-3 border border-line rounded-lg px-3 py-2 text-paper text-sm focus:border-iron focus:outline-none transition-colors resize-none"
         />
@@ -174,6 +193,7 @@ export function EditForm(props: EditFormProps) {
             type="text"
             value={intervalLabel}
             onChange={(e) => setIntervalLabel(e.target.value)}
+            maxLength={120}
             className="w-full bg-steel-3 border border-line rounded-lg px-3 py-2 text-paper text-sm focus:border-iron focus:outline-none transition-colors"
           />
         </div>
@@ -185,18 +205,24 @@ export function EditForm(props: EditFormProps) {
           type="text"
           value={assignedTo}
           onChange={(e) => setAssignedTo(e.target.value)}
+          maxLength={160}
           className="w-full bg-steel-3 border border-line rounded-lg px-3 py-2 text-paper text-sm focus:border-iron focus:outline-none transition-colors"
         />
       </div>
 
+      <PartsEditor parts={parts} onChange={setParts} disabled={saving} />
+
       <div>
         <label className="font-narrow uppercase tracking-wider text-[0.6rem] text-galv-dim block mb-1">
-          Due date {props.intervalDays > 0 && "(overrides auto-calc)"}
+          Due date {Number(intervalDays) > 0 && "(overrides auto-calc)"}
         </label>
         <input
           type="date"
-          value={dueDate}
-          onChange={(e) => setDueDate(e.target.value)}
+          value={displayedDueDate}
+          onChange={(e) => {
+            setDueDate(e.target.value);
+            setDueDateDirty(true);
+          }}
           className="w-full bg-steel-3 border border-line rounded-lg px-3 py-2 text-paper text-sm focus:border-iron focus:outline-none transition-colors"
         />
       </div>
@@ -206,6 +232,7 @@ export function EditForm(props: EditFormProps) {
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
+          maxLength={5000}
           rows={3}
           className="w-full bg-steel-3 border border-line rounded-lg px-3 py-2 text-paper text-sm focus:border-iron focus:outline-none transition-colors resize-none"
         />

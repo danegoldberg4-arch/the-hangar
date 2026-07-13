@@ -28,7 +28,7 @@ export function PowerChart({ data }: { data: Reading[] }) {
           <h3 className="font-narrow uppercase tracking-wider text-xs font-bold text-galv">Power History</h3>
         </div>
         <p className="text-xs text-galv-dim leading-relaxed">
-          Collecting data — check back after the family has been using the app for a day. Each dashboard visit logs a reading.
+          Collecting data. The 15-minute monitor needs at least two successful samples.
         </p>
       </div>
     );
@@ -142,7 +142,7 @@ export function PowerChart({ data }: { data: Reading[] }) {
           {data.length} readings · last 24h
         </span>
         <span className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">
-          Updates on each visit
+          Updates every 15 min
         </span>
       </div>
     </div>
