@@ -16,10 +16,16 @@ export const maxDuration = 30;
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const items = await prisma.maintenanceItem.findMany({
-    where: { isActive: true },
-    orderBy: { name: "asc" },
-  });
+  let items: Awaited<ReturnType<typeof prisma.maintenanceItem.findMany>> = [];
+  try {
+    items = await prisma.maintenanceItem.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+    });
+  } catch (err) {
+    console.error("[dashboard] DB error:", err);
+    items = [];
+  }
 
   const itemsWithStatus = items.map((item) => {
     const { status, daysUntilDue } = calculateStatus(
