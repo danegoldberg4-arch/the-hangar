@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { enforceAdmin, requireAdmin, requireUser } from "@/lib/api-auth";
+import { enforceAdmin, requireUser } from "@/lib/api-auth";
 import {
   apiError,
   internalError,
@@ -8,6 +8,8 @@ import {
   validationError,
 } from "@/lib/api-response";
 import { validatePlugInventoryUpdate } from "@/lib/plug-inventory-validation";
+import { setDevicePower, getDeviceEnergy } from "@/lib/integrations/tapo";
+import { parseAutomation, serializeAutomation } from "@/lib/plugs";
 
 export async function PATCH(
   request: NextRequest,
@@ -23,20 +25,52 @@ export async function PATCH(
   try {
     const plug = await prisma.smartPlug.findUnique({ where: { id } });
     if (!plug) {
-      return apiError(404, "NOT_FOUND", "Inventory device not found.");
+      return apiError(404, "NOT_FOUND", "Plug not found.");
     }
 
-    if (
-      Object.prototype.hasOwnProperty.call(body.value, "action") ||
-      Object.prototype.hasOwnProperty.call(body.value, "automation")
-    ) {
-      return apiError(
-        501,
-        "CONTROL_UNAVAILABLE",
-        "Physical device control is unavailable until the edge agent is deployed."
-      );
+    // Handle on/off actions — calls the real Tapo API
+    if (Object.prototype.hasOwnProperty.call(body.value, "action")) {
+      const action = body.value.action;
+
+      if (action === "toggle" || action === "turn_on" || action === "turn_off") {
+        let targetOn: boolean;
+        if (action === "toggle") targetOn = !plug.isOn;
+        else targetOn = action === "turn_on";
+
+        // Call Tapo API to control the physical plug
+        if (plug.type === "tapo") {
+          const success = await setDevicePower(plug.deviceId, targetOn);
+          if (!success) {
+            return apiError(502, "DEVICE_ERROR", "Could not control the plug. Check it's online.");
+          }
+        }
+
+        // Also fetch current power reading
+        let powerW = plug.powerW;
+        if (plug.type === "tapo") {
+          const energy = await getDeviceEnergy(plug.deviceId);
+          if (energy) powerW = energy.currentPower;
+        }
+
+        const updated = await prisma.smartPlug.update({
+          where: { id },
+          data: { isOn: targetOn, powerW, lastSeen: new Date() },
+        });
+        return NextResponse.json(updated);
+      }
     }
 
+    // Handle automation settings
+    if (Object.prototype.hasOwnProperty.call(body.value, "automation")) {
+      const auto = { ...parseAutomation(plug.automation), ...body.value.automation };
+      const updated = await prisma.smartPlug.update({
+        where: { id },
+        data: { automation: serializeAutomation(auto) },
+      });
+      return NextResponse.json(updated);
+    }
+
+    // Handle name/room edits (admin only)
     const forbidden = enforceAdmin(access.user);
     if (forbidden) return forbidden;
 
@@ -46,19 +80,10 @@ export async function PATCH(
     const updated = await prisma.smartPlug.update({
       where: { id },
       data: parsed.value,
-      select: {
-        id: true,
-        name: true,
-        type: true,
-        deviceId: true,
-        ip: true,
-        room: true,
-        createdAt: true,
-      },
     });
     return NextResponse.json(updated);
   } catch (error) {
-    return internalError("update inventory device", error);
+    return internalError("update plug", error);
   }
 }
 
@@ -66,17 +91,20 @@ export async function DELETE(
   _req: NextRequest,
   ctx: RouteContext<"/api/plugs/[id]">
 ) {
-  const access = await requireAdmin();
+  const access = await requireUser();
   if (!access.ok) return access.response;
+
+  const forbidden = enforceAdmin(access.user);
+  if (forbidden) return forbidden;
 
   const { id } = await ctx.params;
   try {
     const deleted = await prisma.smartPlug.deleteMany({ where: { id } });
     if (deleted.count === 0) {
-      return apiError(404, "NOT_FOUND", "Inventory device not found.");
+      return apiError(404, "NOT_FOUND", "Plug not found.");
     }
     return NextResponse.json({ ok: true });
   } catch (error) {
-    return internalError("delete inventory device", error);
+    return internalError("delete plug", error);
   }
 }
