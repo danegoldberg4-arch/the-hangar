@@ -25,7 +25,7 @@ type Range = "1h" | "6h" | "24h";
 const rangeHours: Record<Range, number> = { "1h": 1, "6h": 6, "24h": 24 };
 
 export function PowerChart({ initialData }: { initialData: Reading[] }) {
-  const [range, setRange] = useState<Range>("6h");
+  const [range, setRange] = useState<Range>("24h");
   const [data, setData] = useState<Reading[]>(initialData);
   const [loading, setLoading] = useState(false);
 
