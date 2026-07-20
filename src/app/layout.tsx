@@ -50,7 +50,7 @@ export const metadata: Metadata = {
       { url: "/brand/hangar-app-icon-v2.svg", sizes: "any", type: "image/svg+xml" },
       { url: "/brand/hangar-app-icon-v2.png", sizes: "512x512", type: "image/png" },
     ],
-    apple: [{ url: "/brand/hangar-apple-touch-v2.png", sizes: "180x180", type: "image/png" }],
+    apple: [{ url: "/brand/hangar-apple-touch-v2.png?v=2", sizes: "180x180", type: "image/png" }],
   },
 };
 
