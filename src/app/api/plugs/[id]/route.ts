@@ -62,7 +62,7 @@ export async function PATCH(
 
     // Handle automation settings
     if (Object.prototype.hasOwnProperty.call(body.value, "automation")) {
-      const auto = { ...parseAutomation(plug.automation), ...body.value.automation };
+      const auto = { ...parseAutomation(plug.automation), ...(body.value.automation as Record<string, unknown>) };
       const updated = await prisma.smartPlug.update({
         where: { id },
         data: { automation: serializeAutomation(auto) },
