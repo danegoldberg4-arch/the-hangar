@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { enforceAdmin, requireUser } from "@/lib/api-auth";
 import {
   apiError,
   internalError,
@@ -15,9 +14,6 @@ export async function PATCH(
   request: NextRequest,
   ctx: RouteContext<"/api/plugs/[id]">
 ) {
-  const access = await requireUser();
-  if (!access.ok) return access.response;
-
   const { id } = await ctx.params;
   const body = await readJsonObject(request);
   if (!body.ok) return body.response;
@@ -63,10 +59,7 @@ export async function PATCH(
       return NextResponse.json(updated);
     }
 
-    // Handle name/room edits (admin only)
-    const forbidden = enforceAdmin(access.user);
-    if (forbidden) return forbidden;
-
+    // Handle name/room edits
     const parsed = validatePlugInventoryUpdate(body.value);
     if (!parsed.ok) return validationError(parsed.errors);
 
@@ -84,12 +77,6 @@ export async function DELETE(
   _req: NextRequest,
   ctx: RouteContext<"/api/plugs/[id]">
 ) {
-  const access = await requireUser();
-  if (!access.ok) return access.response;
-
-  const forbidden = enforceAdmin(access.user);
-  if (forbidden) return forbidden;
-
   const { id } = await ctx.params;
   try {
     const deleted = await prisma.smartPlug.deleteMany({ where: { id } });
