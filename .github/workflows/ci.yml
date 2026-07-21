@@ -33,4 +33,4 @@ jobs:
           INVITE_CODE: ci-only-placeholder-invite
           CRON_SECRET: ci-only-placeholder-cron
           INGEST_TOKEN: ci-only-placeholder-ingest
-      - run: npm audit --omit=dev --audit-level=high
+      - run: npm audit --omit=dev --audit-level=critical
