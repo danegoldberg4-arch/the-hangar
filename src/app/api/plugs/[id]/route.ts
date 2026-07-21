@@ -8,7 +8,7 @@ import {
   validationError,
 } from "@/lib/api-response";
 import { validatePlugInventoryUpdate } from "@/lib/plug-inventory-validation";
-import { setDevicePower, getDeviceEnergy } from "@/lib/integrations/tapo";
+import { setDevicePower, getDevicePower } from "@/lib/integrations/tapo";
 import { parseAutomation, serializeAutomation } from "@/lib/plugs";
 
 export async function PATCH(
@@ -48,8 +48,8 @@ export async function PATCH(
         // Also fetch current power reading
         let powerW = plug.powerW;
         if (plug.type === "tapo") {
-          const energy = await getDeviceEnergy(plug.deviceId);
-          if (energy) powerW = energy.currentPower;
+          const power = await getDevicePower(plug.deviceId);
+          if (power) powerW = power;
         }
 
         const updated = await prisma.smartPlug.update({
