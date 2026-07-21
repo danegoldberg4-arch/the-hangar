@@ -14,15 +14,6 @@ export async function GET() {
 
   const plugs = await prisma.smartPlug.findMany({
     orderBy: { name: "asc" },
-    select: {
-      id: true,
-      name: true,
-      type: true,
-      deviceId: true,
-      ip: true,
-      room: true,
-      createdAt: true,
-    },
   });
 
   return NextResponse.json(plugs);
@@ -41,19 +32,10 @@ export async function POST(request: NextRequest) {
   try {
     const plug = await prisma.smartPlug.create({
       data: parsed.value,
-      select: {
-        id: true,
-        name: true,
-        type: true,
-        deviceId: true,
-        ip: true,
-        room: true,
-        createdAt: true,
-      },
     });
 
     return NextResponse.json(plug, { status: 201 });
   } catch (error) {
-    return internalError("create inventory device", error);
+    return internalError("create plug", error);
   }
 }
