@@ -1,220 +1,123 @@
-const TAPO_API_BASE = "https://tapo-api.tplink.com/api/v1";
+import { prisma } from "@/lib/prisma";
+import { cloudLogin, loginDevice } from "tp-link-tapo-connect";
 
-interface TapoToken {
-  token: string;
-  expiresAt: number;
-}
+const EMAIL = process.env.TAPO_EMAIL;
+const PASSWORD = process.env.TAPO_PASSWORD;
 
-interface TapoDevice {
-  deviceId: string;
-  deviceName: string;
-  deviceModel: string;
-  alias: string;
-  status: string;
-  powerOn: boolean;
-  region: string;
-}
+let cachedApi: Awaited<ReturnType<typeof cloudLogin>> | null = null;
 
-interface TapoEnergyData {
-  todayEnergy: number;
-  monthEnergy: number;
-  currentPower: number;
-  localTime: string;
-}
-
-let cachedToken: TapoToken | null = null;
-
-async function login(): Promise<string | null> {
-  const email = process.env.TAPO_EMAIL;
-  const password = process.env.TAPO_PASSWORD;
-
-  if (!email || !password) {
+async function getApi() {
+  if (!EMAIL || !PASSWORD) {
     console.error("[tapo] Missing TAPO_EMAIL or TAPO_PASSWORD");
     return null;
   }
 
-  if (cachedToken && Date.now() < cachedToken.expiresAt) {
-    return cachedToken.token;
-  }
+  if (cachedApi) return cachedApi;
 
   try {
-    const res = await fetch(`${TAPO_API_BASE}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        method: "login",
-        params: {
-          username: email,
-          password: password,
-          cloudToken: "",
-        },
-      }),
-    });
-
-    if (!res.ok) {
-      console.error("[tapo] Login failed:", res.status);
-      return null;
-    }
-
-    const data = await res.json();
-    if (data.errorCode !== 0) {
-      console.error("[tapo] Login error:", data.errorCode, data.result?.msg);
-      return null;
-    }
-
-    const token = data.result?.token;
-    if (!token) {
-      console.error("[tapo] No token in response");
-      return null;
-    }
-
-    cachedToken = {
-      token,
-      expiresAt: Date.now() + 23 * 60 * 60 * 1000, // 23 hours
-    };
-
-    return token;
+    cachedApi = await cloudLogin(EMAIL, PASSWORD);
+    return cachedApi;
   } catch (err) {
     console.error("[tapo] Login error:", err);
     return null;
   }
 }
 
-export async function listDevices(): Promise<TapoDevice[]> {
-  const token = await login();
-  if (!token) return [];
+export async function syncDevicesToDb(): Promise<number> {
+  const api = await getApi();
+  if (!api) return 0;
 
   try {
-    const res = await fetch(`${TAPO_API_BASE}/devices`, {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const devices = await api.listDevices();
 
-    if (!res.ok) return [];
+    let synced = 0;
+    for (const device of devices) {
+      const deviceId = device.deviceId;
+      if (!deviceId) continue;
 
-    const data = await res.json();
-    if (data.errorCode !== 0) return [];
+      let isOn = false;
+      let powerW = 0;
 
-    return (data.result?.deviceList || []).map((d: Record<string, unknown>) => ({
-      deviceId: d.deviceId as string,
-      deviceName: d.deviceName as string,
-      deviceModel: d.deviceModel as string,
-      alias: d.alias as string,
-      status: d.status as string,
-      powerOn: d.deviceOn === true,
-      region: d.region as string,
-    }));
+      try {
+        const dev = await loginDevice(EMAIL!, PASSWORD!, device);
+        const info = await dev.getDeviceInfo();
+        isOn = info.device_on ?? false;
+        const energy = await dev.getEnergyUsage();
+        powerW = Number((energy as Record<string, unknown>).current_power ?? 0);
+      } catch {
+        // Device might be offline
+      }
+
+      const existing = await prisma.smartPlug.findFirst({
+        where: { deviceId },
+      });
+
+      if (existing) {
+        await prisma.smartPlug.update({
+          where: { id: existing.id },
+          data: {
+            isOn,
+            powerW,
+            lastSeen: new Date(),
+            ...(device.alias && { name: device.alias }),
+          },
+        });
+      } else {
+        await prisma.smartPlug.create({
+          data: {
+            name: device.alias || `Plug ${deviceId.slice(-4)}`,
+            type: "tapo",
+            deviceId,
+            isOn,
+            powerW,
+          },
+        });
+      }
+      synced++;
+    }
+
+    return synced;
   } catch (err) {
-    console.error("[tapo] List devices error:", err);
-    return [];
+    console.error("[tapo] Sync error:", err);
+    return 0;
   }
 }
 
-export async function setDevicePower(
-  deviceId: string,
-  on: boolean
-): Promise<boolean> {
-  const token = await login();
-  if (!token) return false;
+export async function setDevicePower(deviceId: string, on: boolean): Promise<boolean> {
+  const api = await getApi();
+  if (!api) return false;
 
   try {
-    const res = await fetch(`${TAPO_API_BASE}/devices/${deviceId}/status`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        method: "setDeviceInfo",
-        params: {
-          deviceOn: on,
-        },
-      }),
-    });
+    const devices = await api.listDevices();
+    const device = devices.find((d) => d.deviceId === deviceId);
+    if (!device) return false;
 
-    if (!res.ok) return false;
-    const data = await res.json();
-    return data.errorCode === 0;
+    const dev = await loginDevice(EMAIL!, PASSWORD!, device);
+    if (on) {
+      await dev.turnOn();
+    } else {
+      await dev.turnOff();
+    }
+    return true;
   } catch (err) {
     console.error("[tapo] Set power error:", err);
     return false;
   }
 }
 
-export async function getDeviceEnergy(
-  deviceId: string
-): Promise<TapoEnergyData | null> {
-  const token = await login();
-  if (!token) return null;
+export async function getDevicePower(deviceId: string): Promise<number> {
+  const api = await getApi();
+  if (!api) return 0;
 
   try {
-    const res = await fetch(
-      `${TAPO_API_BASE}/devices/${deviceId}/energy`,
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
+    const devices = await api.listDevices();
+    const device = devices.find((d) => d.deviceId === deviceId);
+    if (!device) return 0;
 
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (data.errorCode !== 0) return null;
-
-    return {
-      todayEnergy: data.result?.todayEnergy ?? 0,
-      monthEnergy: data.result?.monthEnergy ?? 0,
-      currentPower: data.result?.currentPower ?? 0,
-      localTime: data.result?.localTime ?? "",
-    };
-  } catch (err) {
-    console.error("[tapo] Get energy error:", err);
-    return null;
+    const dev = await loginDevice(EMAIL!, PASSWORD!, device);
+    const energy = await dev.getEnergyUsage();
+    return Number((energy as Record<string, unknown>).current_power ?? 0);
+  } catch {
+    return 0;
   }
 }
-
-export async function syncDevicesToDb(): Promise<number> {
-  const devices = await listDevices();
-  if (devices.length === 0) return 0;
-
-  let synced = 0;
-  for (const device of devices) {
-    const existing = await prisma.smartPlug.findFirst({
-      where: { deviceId: device.deviceId },
-    });
-
-    if (existing) {
-      // Update status and power
-      const energy = await getDeviceEnergy(device.deviceId);
-      await prisma.smartPlug.update({
-        where: { id: existing.id },
-        data: {
-          isOn: device.powerOn,
-          powerW: energy?.currentPower ?? 0,
-          lastSeen: new Date(),
-          ...(device.alias && { name: device.alias }),
-        },
-      });
-    } else {
-      // Create new plug entry
-      await prisma.smartPlug.create({
-        data: {
-          name: device.alias || device.deviceName || `Plug ${device.deviceId.slice(-4)}`,
-          type: "tapo",
-          deviceId: device.deviceId,
-          isOn: device.powerOn,
-          powerW: 0,
-        },
-      });
-    }
-    synced++;
-  }
-
-  return synced;
-}
-
-// Import prisma here to avoid circular deps at top
-import { prisma } from "@/lib/prisma";
