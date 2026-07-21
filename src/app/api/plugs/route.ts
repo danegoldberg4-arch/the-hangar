@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin, requireUser } from "@/lib/api-auth";
+import { requireAdmin } from "@/lib/api-auth";
 import {
   internalError,
   readJsonObject,
@@ -9,14 +9,14 @@ import {
 import { validatePlugInventoryCreate } from "@/lib/plug-inventory-validation";
 
 export async function GET() {
-  const access = await requireUser();
-  if (!access.ok) return access.response;
-
-  const plugs = await prisma.smartPlug.findMany({
-    orderBy: { name: "asc" },
-  });
-
-  return NextResponse.json(plugs);
+  try {
+    const plugs = await prisma.smartPlug.findMany({
+      orderBy: { name: "asc" },
+    });
+    return NextResponse.json(plugs);
+  } catch (error) {
+    return internalError("list plugs", error);
+  }
 }
 
 export async function POST(request: NextRequest) {
