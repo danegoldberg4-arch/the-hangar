@@ -26,6 +26,20 @@ interface TapoCloudDevice {
   lastBindTime: number;
 }
 
+function decodeTapoName(name: string): string {
+  try {
+    // Tapo API returns base64-encoded names
+    const decoded = Buffer.from(name, "base64").toString("utf-8");
+    // If it looks like valid text, use it; otherwise use the original
+    if (decoded && /^[\x20-\x7E]+$/.test(decoded)) {
+      return decoded.trim();
+    }
+  } catch {
+    // Not base64
+  }
+  return name.trim();
+}
+
 let cachedToken: string | null = null;
 let cachedBaseUrl: string | null = null;
 let tokenExpiry = 0;
@@ -221,13 +235,13 @@ export async function syncDevicesToDb(): Promise<number> {
           isOn,
           powerW,
           lastSeen: new Date(),
-          ...(device.alias && { name: device.alias.trim() }),
+          ...(device.alias && { name: decodeTapoName(device.alias) }),
         },
       });
     } else {
       await prisma.smartPlug.create({
         data: {
-          name: (device.alias || `Plug ${deviceId.slice(-4)}`).trim(),
+          name: decodeTapoName(device.alias || `Plug ${deviceId.slice(-4)}`),
           type: "tapo",
           deviceId,
           isOn,
