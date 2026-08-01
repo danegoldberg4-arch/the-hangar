@@ -1,14 +1,41 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
-  apiError,
   internalError,
   readJsonObject,
   validationError,
 } from "@/lib/api-response";
-import { validatePlugInventoryUpdate } from "@/lib/plug-inventory-validation";
+import { validatePlugInventoryCreate } from "@/lib/plug-inventory-validation";
 import { setDevicePower } from "@/lib/integrations/tapo";
 import { parseAutomation, serializeAutomation } from "@/lib/plugs";
+
+export async function GET() {
+  try {
+    const plugs = await prisma.smartPlug.findMany({
+      orderBy: { name: "asc" },
+    });
+    return NextResponse.json(plugs);
+  } catch (error) {
+    return internalError("list plugs", error);
+  }
+}
+
+export async function POST(request: NextRequest) {
+  const body = await readJsonObject(request);
+  if (!body.ok) return body.response;
+
+  const parsed = validatePlugInventoryCreate(body.value);
+  if (!parsed.ok) return validationError(parsed.errors);
+
+  try {
+    const plug = await prisma.smartPlug.create({
+      data: parsed.value,
+    });
+    return NextResponse.json(plug, { status: 201 });
+  } catch (error) {
+    return internalError("create plug", error);
+  }
+}
 
 export async function PATCH(
   request: NextRequest,
@@ -21,10 +48,10 @@ export async function PATCH(
   try {
     const plug = await prisma.smartPlug.findUnique({ where: { id } });
     if (!plug) {
-      return apiError(404, "NOT_FOUND", "Plug not found.");
+      return NextResponse.json({ error: "Plug not found." }, { status: 404 });
     }
 
-    // Handle on/off actions — calls the real Tapo API
+    // Handle on/off actions
     if (Object.prototype.hasOwnProperty.call(body.value, "action")) {
       const action = body.value.action;
 
@@ -33,11 +60,13 @@ export async function PATCH(
         if (action === "toggle") targetOn = !plug.isOn;
         else targetOn = action === "turn_on";
 
-        // Call Tapo API to control the physical plug
         if (plug.type === "tapo") {
           const success = await setDevicePower(plug.deviceId, targetOn);
           if (!success) {
-            return apiError(502, "DEVICE_ERROR", "Could not control the plug. Check it's online.");
+            return NextResponse.json(
+              { error: "Could not control the plug. Check it's online." },
+              { status: 502 }
+            );
           }
         }
 
@@ -61,8 +90,6 @@ export async function PATCH(
 
     // Handle name/room edits
     const parsed = validatePlugInventoryUpdate(body.value);
-    if (!parsed.ok) return validationError(parsed.errors);
-
     const updated = await prisma.smartPlug.update({
       where: { id },
       data: parsed.value,
@@ -81,10 +108,18 @@ export async function DELETE(
   try {
     const deleted = await prisma.smartPlug.deleteMany({ where: { id } });
     if (deleted.count === 0) {
-      return apiError(404, "NOT_FOUND", "Plug not found.");
+      return NextResponse.json({ error: "Plug not found." }, { status: 404 });
     }
     return NextResponse.json({ ok: true });
   } catch (error) {
     return internalError("delete plug", error);
   }
+}
+
+function validatePlugInventoryUpdate(value: Record<string, unknown>) {
+  // Simple validation — accept name and room updates
+  const result: Record<string, unknown> = {};
+  if (typeof value.name === "string") result.name = value.name;
+  if (typeof value.room === "string") result.room = value.room;
+  return { ok: true, value: result };
 }
