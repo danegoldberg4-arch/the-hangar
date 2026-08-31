@@ -12,21 +12,35 @@
  * USAGE:
  *   TAPO_EMAIL=you@example.com \
  *   TAPO_PASSWORD=your-password \
- *   SERVER_URL=https://the-hangar-one.vercel.app \
+ *   SERVER_URL=https://your-deployment.vercel.app \
  *   INGEST_TOKEN=your-token \
  *   node relay-tapo.js
  * 
  * Or create a .env file with those values and run:
  *   node relay-tapo.js
+ * 
+ * All four values are REQUIRED — the script fails fast if any are missing.
  */
 
 const { cloudLogin, loginDeviceByIp } = require("tp-link-tapo-connect");
 
-// Config
-const TAPO_EMAIL = process.env.TAPO_EMAIL || "you@example.com";
-const TAPO_PASSWORD = process.env.TAPO_PASSWORD || "your-password";
-const SERVER_URL = (process.env.SERVER_URL || "https://the-hangar-one.vercel.app").replace(/\/$/, "");
-const INGEST_TOKEN = process.env.INGEST_TOKEN || "your-token";
+// Config — required, no fallbacks (secrets must never be hardcoded)
+const required = {
+  TAPO_EMAIL: process.env.TAPO_EMAIL,
+  TAPO_PASSWORD: process.env.TAPO_PASSWORD,
+  SERVER_URL: process.env.SERVER_URL,
+  INGEST_TOKEN: process.env.INGEST_TOKEN,
+};
+for (const [key, value] of Object.entries(required)) {
+  if (!value) {
+    console.error(`[relay] Missing required env var ${key}. Set it and re-run.`);
+    process.exit(1);
+  }
+}
+const TAPO_EMAIL = required.TAPO_EMAIL;
+const TAPO_PASSWORD = required.TAPO_PASSWORD;
+const SERVER_URL = required.SERVER_URL.replace(/\/$/, "");
+const INGEST_TOKEN = required.INGEST_TOKEN;
 const POLL_INTERVAL = 30000; // 30 seconds
 
 let plugStates = {}; // deviceId -> { isOn, powerW, ip, name }
