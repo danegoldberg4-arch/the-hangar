@@ -8,6 +8,8 @@ import {
   validationError,
 } from "@/lib/api-response";
 import { validateMaintenanceCreate } from "@/lib/workflow-validation";
+export const maxDuration = 30;
+
 
 export async function GET() {
   const access = await requireUser();

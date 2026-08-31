@@ -2,8 +2,15 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 
 export async function PlugSummary() {
-  const deviceCount = await prisma.smartPlug.count();
-  if (deviceCount === 0) return null;
+  let deviceCount = 0;
+  let failed = false;
+  try {
+    deviceCount = await prisma.smartPlug.count();
+  } catch (err) {
+    console.error("[plug-summary] DB error:", err);
+    failed = true;
+  }
+  if (failed || deviceCount === 0) return null;
 
   return (
     <div className="card-surface p-4 sm:p-5">

@@ -12,16 +12,21 @@ export default async function MaintenancePage() {
   const session = await auth();
   const isAdmin = session?.user?.role === "admin";
 
-  const items = await prisma.maintenanceItem.findMany({
-    where: { isActive: true },
-    include: {
-      logs: {
-        orderBy: { completedAt: "desc" },
-        take: 1,
+  let items: Awaited<ReturnType<typeof prisma.maintenanceItem.findMany>> = [];
+  try {
+    items = await prisma.maintenanceItem.findMany({
+      where: { isActive: true },
+      include: {
+        logs: {
+          orderBy: { completedAt: "desc" },
+          take: 1,
+        },
       },
-    },
-    orderBy: { name: "asc" },
-  });
+      orderBy: { name: "asc" },
+    });
+  } catch (err) {
+    console.error("[maintenance] DB error:", err);
+  }
 
   const itemsWithStatus = items.map((item) => {
     const { status, daysUntilDue } = calculateStatus(

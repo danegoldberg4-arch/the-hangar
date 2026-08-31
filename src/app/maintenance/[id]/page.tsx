@@ -15,14 +15,19 @@ export default async function MaintenanceDetailPage({
   const session = await auth();
   const isAdmin = session?.user?.role === "admin";
   const { id } = await params;
-  const item = await prisma.maintenanceItem.findUnique({
-    where: { id },
-    include: {
-      logs: {
-        orderBy: { completedAt: "desc" },
+  let item;
+  try {
+    item = await prisma.maintenanceItem.findUnique({
+      where: { id },
+      include: {
+        logs: {
+          orderBy: { completedAt: "desc" },
+        },
       },
-    },
-  });
+    });
+  } catch (err) {
+    console.error("[maintenance:detail] DB error:", err);
+  }
 
   if (!item) notFound();
 

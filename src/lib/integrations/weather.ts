@@ -282,14 +282,20 @@ export async function getLatestWeather(): Promise<WeatherObservation | null> {
 }
 
 export async function getLatestFireDanger(): Promise<FireDangerRating | null> {
-  const latest = await prisma.fireDanger.findFirst({
-    orderBy: { observedAt: "desc" },
-    where: {
-      district: DISTRICT_NAME,
-      reportDate: { not: null },
-      sourceTimestampTrusted: true,
-    },
-  });
+  let latest;
+  try {
+    latest = await prisma.fireDanger.findFirst({
+      orderBy: { observedAt: "desc" },
+      where: {
+        district: DISTRICT_NAME,
+        reportDate: { not: null },
+        sourceTimestampTrusted: true,
+      },
+    });
+  } catch (err) {
+    console.error("[weather] getLatestFireDanger DB error:", err);
+    return null;
+  }
   if (!latest || !latest.reportDate) return null;
 
   return {

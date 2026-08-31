@@ -7,6 +7,8 @@ import {
   validationError,
 } from "@/lib/api-response";
 import { parseDateOnly, validateVisitCreate } from "@/lib/workflow-validation";
+export const maxDuration = 30;
+
 
 function formatUtcDate(date: Date) {
   return date.toISOString().slice(0, 10);

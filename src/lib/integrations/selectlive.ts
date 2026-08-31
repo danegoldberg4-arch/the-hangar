@@ -245,10 +245,16 @@ async function processAndStore(data: SelectLiveResponse): Promise<PowerStatus | 
 }
 
 export async function getLatestPower(): Promise<PowerStatus | null> {
-  const latest = await prisma.powerReading.findFirst({
-    where: { sourceTimestampTrusted: true },
-    orderBy: { observedAt: "desc" },
-  });
+  let latest;
+  try {
+    latest = await prisma.powerReading.findFirst({
+      where: { sourceTimestampTrusted: true },
+      orderBy: { observedAt: "desc" },
+    });
+  } catch (err) {
+    console.error("[selectlive] getLatestPower DB error:", err);
+    return null;
+  }
   if (!latest) return null;
 
   return {

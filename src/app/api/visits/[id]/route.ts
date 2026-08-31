@@ -11,6 +11,8 @@ import {
   validateVisitDateOrder,
   validateVisitUpdate,
 } from "@/lib/workflow-validation";
+export const maxDuration = 30;
+
 
 export async function PATCH(
   request: NextRequest,

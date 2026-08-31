@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { setDevicePower } from "@/lib/integrations/tapo";
 import { parseAutomation, serializeAutomation } from "@/lib/plugs";
+export const maxDuration = 30;
+
 
 
 export async function GET() {

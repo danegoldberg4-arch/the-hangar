@@ -6,15 +6,22 @@ import {
   storedObservationMeta,
   unavailableMeta,
 } from "@/lib/integrations/freshness";
+export const maxDuration = 30;
+
 
 export async function GET() {
   const access = await requireUser();
   if (!access.ok) return access.response;
 
-  const latest = await prisma.starlinkStatus.findFirst({
-    where: { sourceTimestampTrusted: true },
-    orderBy: { observedAt: "desc" },
-  });
+  let latest;
+  try {
+    latest = await prisma.starlinkStatus.findFirst({
+      where: { sourceTimestampTrusted: true },
+      orderBy: { observedAt: "desc" },
+    });
+  } catch (err) {
+    console.error("[starlink] DB error:", err);
+  }
 
   if (!latest) {
     return NextResponse.json(

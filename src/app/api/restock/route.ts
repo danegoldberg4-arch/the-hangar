@@ -7,6 +7,8 @@ import {
   validationError,
 } from "@/lib/api-response";
 import { validateRestockCreate } from "@/lib/workflow-validation";
+export const maxDuration = 30;
+
 
 export async function GET(request: NextRequest) {
   const access = await requireUser();

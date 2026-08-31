@@ -38,17 +38,28 @@ export async function requireUser(): Promise<AccessResult> {
 
   // Try by ID first, fall back to email (handles migrated sessions)
   let user = null;
-  if (session.user.id) {
-    user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { id: true, name: true, email: true, role: true },
-    });
-  }
-  if (!user && session.user.email) {
-    user = await prisma.user.findUnique({
-      where: { email: session.user.email as string },
-      select: { id: true, name: true, email: true, role: true },
-    });
+  try {
+    if (session.user.id) {
+      user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { id: true, name: true, email: true, role: true },
+      });
+    }
+    if (!user && session.user.email) {
+      user = await prisma.user.findUnique({
+        where: { email: session.user.email as string },
+        select: { id: true, name: true, email: true, role: true },
+      });
+    }
+  } catch (error) {
+    console.error("[api-auth] user lookup failed", error);
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers: noStoreHeaders }
+      ),
+    };
   }
 
   if (!user) {

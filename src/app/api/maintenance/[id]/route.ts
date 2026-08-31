@@ -9,6 +9,8 @@ import {
   validationError,
 } from "@/lib/api-response";
 import { validateMaintenanceUpdate } from "@/lib/workflow-validation";
+export const maxDuration = 30;
+
 
 export async function GET(
   _req: NextRequest,

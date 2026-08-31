@@ -37,9 +37,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const email = credentials.email.trim().toLowerCase();
         if (!email || !credentials.password) return null;
 
-        const user = await prisma.user.findUnique({
-          where: { email },
-        });
+        let user;
+        try {
+          user = await prisma.user.findUnique({
+            where: { email },
+          });
+        } catch (error) {
+          console.error("[auth] user lookup failed", error);
+          return null;
+        }
 
         if (!user) return null;
 

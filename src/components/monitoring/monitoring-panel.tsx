@@ -59,13 +59,21 @@ function windDirToText(deg: number): string {
 }
 
 export async function MonitoringPanel() {
-  const [existingFdr, existingPower, starlink] = await Promise.all([
+  let starlink: Awaited<ReturnType<typeof prisma.starlinkStatus.findFirst>> = null;
+  try {
+    [starlink] = await Promise.all([
+      prisma.starlinkStatus.findFirst({
+        where: { sourceTimestampTrusted: true },
+        orderBy: { observedAt: "desc" },
+      }),
+    ]);
+  } catch (err) {
+    console.error("[monitoring-panel] DB error:", err);
+  }
+
+  const [existingFdr, existingPower] = await Promise.all([
     getLatestFireDanger(),
     getLatestPower(),
-    prisma.starlinkStatus.findFirst({
-      where: { sourceTimestampTrusted: true },
-      orderBy: { observedAt: "desc" },
-    }),
   ]);
 
   const [freshFdr, warningResult, freshPower, sunTimes, currentWeather] = await Promise.all([

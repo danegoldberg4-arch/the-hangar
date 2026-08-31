@@ -2,16 +2,24 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 
 export async function RestockSummary() {
-  const [items, totalCount] = await Promise.all([
-    prisma.restockItem.findMany({
-      where: { isResolved: false },
-      orderBy: { addedAt: "desc" },
-      take: 5,
-    }),
-    prisma.restockItem.count({ where: { isResolved: false } }),
-  ]);
-
-  const count = totalCount;
+  let items: Awaited<ReturnType<typeof prisma.restockItem.findMany>> = [];
+  let count = 0;
+  let failed = false;
+  try {
+    const [rows, totalCount] = await Promise.all([
+      prisma.restockItem.findMany({
+        where: { isResolved: false },
+        orderBy: { addedAt: "desc" },
+        take: 5,
+      }),
+      prisma.restockItem.count({ where: { isResolved: false } }),
+    ]);
+    items = rows;
+    count = totalCount;
+  } catch (err) {
+    console.error("[restock-summary] DB error:", err);
+    failed = true;
+  }
 
   return (
     <div className="card-surface p-5">
@@ -27,7 +35,9 @@ export async function RestockSummary() {
           {count > 0 ? `${count} needed →` : "View all →"}
         </Link>
       </div>
-      {count === 0 ? (
+      {failed ? (
+        <p className="text-sm text-galv-dim">Restock data unavailable right now.</p>
+      ) : count === 0 ? (
         <p className="text-sm text-galv-dim">Everything&apos;s stocked. Nothing needed right now.</p>
       ) : (
         <div className="space-y-1.5">

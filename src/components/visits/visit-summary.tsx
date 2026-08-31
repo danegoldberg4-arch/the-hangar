@@ -8,18 +8,27 @@ export async function VisitSummary() {
   tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
   const todayEnd = new Date(tomorrow.getTime() - 1);
 
-  const upcoming = await prisma.visit.findMany({
-    where: { endDate: { gte: today } },
-    orderBy: { startDate: "asc" },
-    take: 3,
-  });
-
-  const atHouse = await prisma.visit.findMany({
-    where: {
-      startDate: { lte: todayEnd },
-      endDate: { gte: today },
-    },
-  });
+  let upcoming: Awaited<ReturnType<typeof prisma.visit.findMany>> = [];
+  let atHouse: Awaited<ReturnType<typeof prisma.visit.findMany>> = [];
+  let failed = false;
+  try {
+    [upcoming, atHouse] = await Promise.all([
+      prisma.visit.findMany({
+        where: { endDate: { gte: today } },
+        orderBy: { startDate: "asc" },
+        take: 3,
+      }),
+      prisma.visit.findMany({
+        where: {
+          startDate: { lte: todayEnd },
+          endDate: { gte: today },
+        },
+      }),
+    ]);
+  } catch (err) {
+    console.error("[visit-summary] DB error:", err);
+    failed = true;
+  }
 
   return (
     <div className="card-surface p-5">
@@ -44,7 +53,9 @@ export async function VisitSummary() {
         </div>
       )}
 
-      {upcoming.length === 0 ? (
+      {failed ? (
+        <p className="text-xs text-galv-dim">Visit data unavailable right now.</p>
+      ) : upcoming.length === 0 ? (
         <p className="text-xs text-galv-dim">No visits planned.</p>
       ) : (
         <div className="space-y-2">

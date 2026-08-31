@@ -3,6 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { consumeRegistrationRateLimits } from "@/lib/auth-rate-limit";
 import bcrypt from "bcryptjs";
+export const maxDuration = 30;
+
 
 type RegistrationFailure = {
   ok: false;
