@@ -1,4 +1,5 @@
 import { auth, signIn } from "@/lib/auth";
+import { AuthError } from "next-auth";
 import { HangarBrand } from "@/components/brand/hangar-brand";
 import { redirect } from "next/navigation";
 
@@ -40,11 +41,18 @@ export default async function LoginPage({
           <form
             action={async (formData) => {
               "use server";
-              await signIn("credentials", {
-                email: formData.get("email"),
-                password: formData.get("password"),
-                redirectTo: from || "/",
-              });
+              try {
+                await signIn("credentials", {
+                  email: formData.get("email"),
+                  password: formData.get("password"),
+                  redirectTo: from || "/",
+                });
+              } catch (error) {
+                if (error instanceof AuthError) {
+                  redirect(`/login?error=CredentialsSignin${from ? `&from=${encodeURIComponent(from)}` : ""}`);
+                }
+                throw error;
+              }
             }}
             className="space-y-4"
           >
