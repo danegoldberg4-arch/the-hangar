@@ -15,16 +15,16 @@ export function PowerFlow({ solarW, loadW }: PowerFlowProps) {
   return (
     <div aria-label={`Solar ${solarLabel} powering ${loadLabel} of load`}>
       <svg viewBox="0 0 220 42" className="w-full" role="img" aria-hidden="true">
-        {/* Left: sun glyph — 8 evenly-spaced rays */}
-        <g transform="translate(14 21)" className={generating ? "text-amber-400 animate-float" : "text-galv-dim"}>
+        {/* Left: sun glyph — no float (SVG transform attr + CSS transform both shift it upward and clips) */}
+        <g transform="translate(14 21)" className={generating ? "text-amber-400" : "text-galv-dim"}>
           <circle r="5" fill="none" stroke="currentColor" strokeWidth="1.6" />
           {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => (
             <line
               key={deg}
-              x1={Math.cos((deg * Math.PI) / 180) * 8}
-              y1={Math.sin((deg * Math.PI) / 180) * 8}
-              x2={Math.cos((deg * Math.PI) / 180) * 10}
-              y2={Math.sin((deg * Math.PI) / 180) * 10}
+              x1={Math.cos((deg * Math.PI) / 180) * 6.5}
+              y1={Math.sin((deg * Math.PI) / 180) * 6.5}
+              x2={Math.cos((deg * Math.PI) / 180) * 8.5}
+              y2={Math.sin((deg * Math.PI) / 180) * 8.5}
               stroke="currentColor"
               strokeWidth="1.6"
               strokeLinecap="round"
