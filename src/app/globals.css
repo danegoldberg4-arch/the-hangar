@@ -163,6 +163,84 @@ body {
   animation: shimmer 1.5s infinite;
 }
 
+/* ===== MOTION DESIGN SYSTEM ===== */
+/* Scroll-reveal: element starts hidden, Reveal component adds .is-visible */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+}
+
+.reveal.is-visible {
+  animation: fade-in-up 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+  animation-delay: var(--reveal-delay, 0ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+  .reveal.is-visible {
+    animation: none;
+  }
+}
+
+/* Gradient brand text — copper/iron sweep */
+.gradient-text {
+  background: linear-gradient(
+    105deg,
+    var(--color-paper) 0%,
+    var(--color-iron-lt) 55%,
+    var(--color-iron) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Animated dashed flow line (SVG power diagram) */
+@keyframes flow-dash {
+  to { stroke-dashoffset: -12; }
+}
+.flow-line {
+  stroke-dasharray: 6 6;
+  animation: flow-dash 1.4s linear infinite;
+}
+.flow-line.slow {
+  animation-duration: 2.6s;
+}
+
+/* Gentle floating (ambient orbs, weather icons) */
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+.animate-float {
+  animation: float-y 6s ease-in-out infinite;
+}
+
+/* Battery ring */
+.battery-ring {
+  transition: stroke-dashoffset 0.9s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* Sun arc marker */
+.sun-marker {
+  transition: transform 1s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* Hero underline rule — grows in on load */
+.hero-rule {
+  height: 1px;
+  width: 6rem;
+  background: linear-gradient(90deg, var(--color-iron), transparent);
+  animation: rule-grow 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) 0.15s both;
+}
+@keyframes rule-grow {
+  from { width: 0; opacity: 0; }
+  to { width: 6rem; opacity: 1; }
+}
+
 /* ===== PLUG TOGGLE ===== */
 .plug-toggle {
   position: relative;

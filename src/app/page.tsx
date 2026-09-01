@@ -11,6 +11,8 @@ import { ForecastWidget } from "@/components/weather/forecast-widget";
 import { PowerHistoryChart } from "@/components/weather/power-history-chart";
 import { VisitSummary } from "@/components/visits/visit-summary";
 import { PlugSummary } from "@/components/plugs/plug-summary";
+import { Reveal } from "@/components/motion/reveal";
+import { CountUp } from "@/components/motion/count-up";
 
 export const maxDuration = 30;
 export const dynamic = "force-dynamic";
@@ -45,40 +47,43 @@ export default async function DashboardPage() {
       {/* Hero */}
       <div className="mb-10">
         <span className="eyebrow">Upper Kangaroo River · NSW</span>
-        <h1 className="font-narrow font-bold uppercase text-3xl sm:text-5xl tracking-tight mt-2 text-paper">
-          The Hangar
+        <h1 className="font-narrow font-bold uppercase text-3xl sm:text-5xl tracking-tight mt-2">
+          <span className="gradient-text">The Hangar</span>
         </h1>
+        <div className="hero-rule mt-3" />
       </div>
 
       {/* Alerts */}
       {overdue.length > 0 && (
-        <div className="mb-6 space-y-2">
-          {overdue.map((item) => (
-            <Link
-              key={item.id}
-              href={`/maintenance/${item.id}`}
-              className="card-surface block p-4 hover:border-iron/30 transition-colors group"
-            >
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <span className="w-1.5 h-1.5 rounded-full bg-iron animate-pulse" />
-                  <h3 className="font-narrow uppercase tracking-wider text-sm font-bold text-paper group-hover:text-iron-lt transition-colors">
-                    {item.name}
-                  </h3>
+        <Reveal className="mb-6">
+          <div className="space-y-2">
+            {overdue.map((item) => (
+              <Link
+                key={item.id}
+                href={`/maintenance/${item.id}`}
+                className="card-surface block p-4 hover:border-iron/30 transition-colors group"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <span className="w-1.5 h-1.5 rounded-full bg-iron animate-pulse" />
+                    <h3 className="font-narrow uppercase tracking-wider text-sm font-bold text-paper group-hover:text-iron-lt transition-colors">
+                      {item.name}
+                    </h3>
+                  </div>
+                  <span className="font-narrow uppercase tracking-wider text-xs font-bold text-iron">
+                    {item.daysUntilDue !== null
+                      ? `${Math.abs(item.daysUntilDue)}d overdue`
+                      : "Overdue"}
+                  </span>
                 </div>
-                <span className="font-narrow uppercase tracking-wider text-xs font-bold text-iron">
-                  {item.daysUntilDue !== null
-                    ? `${Math.abs(item.daysUntilDue)}d overdue`
-                    : "Overdue"}
-                </span>
-              </div>
-            </Link>
-          ))}
-        </div>
+              </Link>
+            ))}
+          </div>
+        </Reveal>
       )}
 
       {/* System Monitoring */}
-      <div className="mb-8">
+      <Reveal className="mb-8" delay={60}>
         <h2 className="font-narrow uppercase tracking-[0.15em] text-sm font-bold text-galv-dim mb-4">
           System Monitoring
         </h2>
@@ -91,70 +96,76 @@ export default async function DashboardPage() {
             <PowerHistoryChart />
           </Suspense>
         </div>
-      </div>
+      </Reveal>
 
       {/* Maintenance + Restock + Visits grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
-        {/* Maintenance Summary */}
-        <div className="card-surface p-4 sm:p-5">
-          <div className="flex items-baseline justify-between mb-4">
-            <h3 className="font-narrow uppercase tracking-wider text-sm font-bold text-paper">
-              Maintenance
-            </h3>
-            <Link
-              href="/maintenance"
-              className="font-narrow uppercase tracking-wider text-xs text-iron hover:text-iron-lt transition-colors"
-            >
-              View →
-            </Link>
+      <Reveal className="mb-8" delay={120}>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Maintenance Summary */}
+          <div className="card-surface p-4 sm:p-5">
+            <div className="flex items-baseline justify-between mb-4">
+              <h3 className="font-narrow uppercase tracking-wider text-sm font-bold text-paper">
+                Maintenance
+              </h3>
+              <Link
+                href="/maintenance"
+                className="font-narrow uppercase tracking-wider text-xs text-iron hover:text-iron-lt transition-colors"
+              >
+                View →
+              </Link>
+            </div>
+            <div className="space-y-2.5">
+              <SummaryRow label="Overdue" count={overdue.length} color="text-iron" />
+              <SummaryRow label="Due Soon" count={dueSoon.length} color="text-iron-lt" />
+              <SummaryRow label="Not Started" count={noHistory.length} color="text-galv" />
+              <div className="h-px bg-line my-2" />
+              <SummaryRow label="Total" count={items.length} color="text-paper" />
+            </div>
           </div>
-          <div className="space-y-2.5">
-            <SummaryRow label="Overdue" count={overdue.length} color="text-iron" />
-            <SummaryRow label="Due Soon" count={dueSoon.length} color="text-iron-lt" />
-            <SummaryRow label="Not Started" count={noHistory.length} color="text-galv" />
-            <div className="h-px bg-line my-2" />
-            <SummaryRow label="Total" count={items.length} color="text-paper" />
-          </div>
-        </div>
 
-        {/* Restock Summary */}
-        <div className="lg:col-span-2">
-          <Suspense fallback={<div className="card-surface p-4 sm:p-5 text-sm text-galv-dim">Loading...</div>}>
-            <RestockSummary />
-          </Suspense>
+          {/* Restock Summary */}
+          <div className="lg:col-span-2">
+            <Suspense fallback={<div className="card-surface p-4 sm:p-5 text-sm text-galv-dim">Loading...</div>}>
+              <RestockSummary />
+            </Suspense>
+          </div>
         </div>
-      </div>
+      </Reveal>
 
       {/* Plugs (only shows if plugs exist) */}
-      <div className="mb-8">
+      <Reveal className="mb-8" delay={160}>
         <Suspense fallback={null}>
           <PlugSummary />
         </Suspense>
-      </div>
+      </Reveal>
 
       {/* Visits + Rain + Forecast */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
-        <div className="lg:col-span-1">
+      <Reveal className="mb-8" delay={200}>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-1">
+            <Suspense fallback={<div className="card-surface p-4 sm:p-5 text-sm text-galv-dim">Loading...</div>}>
+              <VisitSummary />
+            </Suspense>
+          </div>
           <Suspense fallback={<div className="card-surface p-4 sm:p-5 text-sm text-galv-dim">Loading...</div>}>
-            <VisitSummary />
+            <RainWidget />
+          </Suspense>
+          <Suspense fallback={<div className="card-surface p-4 sm:p-5 text-sm text-galv-dim">Loading...</div>}>
+            <ForecastWidget />
           </Suspense>
         </div>
-        <Suspense fallback={<div className="card-surface p-4 sm:p-5 text-sm text-galv-dim">Loading...</div>}>
-          <RainWidget />
-        </Suspense>
-        <Suspense fallback={<div className="card-surface p-4 sm:p-5 text-sm text-galv-dim">Loading...</div>}>
-          <ForecastWidget />
-        </Suspense>
-      </div>
+      </Reveal>
 
       {/* Stats bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-px bg-line rounded-xl overflow-hidden border border-line mb-8">
-        <Stat n="15" unit="kW" label="Solar" />
-        <Stat n="26.1" unit="kWh" label="Battery" />
-        <Stat n="7.5" unit="kW" label="Inverter" />
-        <Stat n="22k" unit="L" label="Water" />
-        <Stat n="4×45" unit="kg" label="LPG" />
-      </div>
+      <Reveal className="mb-8" delay={240}>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-px bg-line rounded-xl overflow-hidden border border-line">
+          <Stat n="15" unit="kW" label="Solar" />
+          <Stat n="26.1" unit="kWh" label="Battery" />
+          <Stat n="7.5" unit="kW" label="Inverter" />
+          <Stat n="22k" unit="L" label="Water" />
+          <Stat n="4×45" unit="kg" label="LPG" />
+        </div>
+      </Reveal>
 
       {/* Footer */}
       <div className="border-t border-line pt-6">
@@ -176,10 +187,12 @@ function SummaryRow({ label, count, color }: { label: string; count: number; col
 }
 
 function Stat({ n, unit, label }: { n: string; unit: string; label: string }) {
+  const numeric = n.trim() !== "" && Number.isFinite(Number(n));
   return (
     <div className="bg-steel-2 p-4">
       <div className="font-narrow font-bold text-xl text-paper">
-        {n}<span className="text-xs text-galv-dim ml-0.5">{unit}</span>
+        {numeric ? <CountUp value={n} /> : n}
+        <span className="text-xs text-galv-dim ml-0.5">{unit}</span>
       </div>
       <div className="font-narrow uppercase tracking-wider text-[0.6rem] text-galv-dim mt-0.5">
         {label}

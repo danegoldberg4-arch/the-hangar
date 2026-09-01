@@ -2,6 +2,7 @@ import Link from "next/link";
 import { auth, signOut } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { HangarBrand } from "@/components/brand/hangar-brand";
+import { NavShell } from "@/components/layout/nav-shell";
 
 const navItems = [
   { href: "/", label: "Dashboard" },
@@ -16,7 +17,7 @@ export async function Nav() {
   const session = await auth();
 
   return (
-    <header className="sticky top-0 z-50 border-b border-line bg-steel w-full max-w-full overflow-hidden">
+    <NavShell>
       <div className="max-w-[1180px] mx-auto px-3 sm:px-8 flex items-center justify-between h-14 gap-2">
         <Link
           href="/"
@@ -79,6 +80,6 @@ export async function Nav() {
           )}
         </div>
       </div>
-    </header>
+    </NavShell>
   );
 }

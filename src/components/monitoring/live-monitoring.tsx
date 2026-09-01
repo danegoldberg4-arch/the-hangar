@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { WeatherIcon } from "@/components/weather/weather-icon";
+import { BatteryRing } from "@/components/monitoring/battery-ring";
+import { PowerFlow } from "@/components/monitoring/power-flow";
+import { SunArc } from "@/components/weather/sun-arc";
 
 interface MonitoringData {
   power: {
@@ -184,24 +187,17 @@ export function LiveMonitoring({ initialData }: { initialData: MonitoringData | 
         </div>
         {power ? (
           <div className="space-y-3">
-            <div className="flex items-baseline gap-1">
-              <span className={`font-narrow font-bold text-3xl ${power.batterySoc < 30 ? "text-red-400" : power.batterySoc < 60 ? "text-amber-400" : "text-green-400"}`}>
-                {power.batterySoc.toFixed(0)}
-              </span>
-              <span className="font-narrow text-sm text-galv-dim">%</span>
-              <span className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim ml-auto">Battery</span>
+            <div className="flex items-center gap-4">
+              <BatteryRing soc={power.batterySoc} size={72} />
+              <div>
+                <div className={`font-narrow font-bold text-lg ${power.batterySoc < 30 ? "text-red-400" : power.batterySoc < 60 ? "text-amber-400" : "text-green-400"}`}>
+                  {power.batterySoc < 30 ? "Critical" : power.batterySoc < 60 ? "Moderate" : "Healthy"}
+                </div>
+                <div className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">Battery</div>
+              </div>
             </div>
             <div className="h-px bg-line" />
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <div className="font-narrow font-bold text-lg text-amber-400">{formatPower(power.solarW)}</div>
-                <div className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">Solar</div>
-              </div>
-              <div>
-                <div className="font-narrow font-bold text-lg text-paper">{formatPower(power.loadW)}</div>
-                <div className="font-narrow uppercase tracking-wider text-[0.55rem] text-galv-dim">Load</div>
-              </div>
-            </div>
+            <PowerFlow solarW={power.solarW} loadW={power.loadW} />
           </div>
         ) : (
           <p className="text-xs text-galv-dim">Power telemetry unavailable.</p>
@@ -314,21 +310,7 @@ export function LiveMonitoring({ initialData }: { initialData: MonitoringData | 
             {data.sunTimes && (
               <>
                 <div className="h-px bg-line" />
-                <div className="flex items-center justify-between">
-                  <span className="font-narrow text-galv-dim flex items-center gap-1">
-                    <svg viewBox="0 0 24 24" className="w-3 h-3 text-amber-400" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round">
-                      <circle cx="12" cy="12" r="3" />
-                      <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4l1.4-1.4M17 7l1.4-1.4" />
-                    </svg>
-                    <span className="text-paper text-sm">{data.sunTimes.sunrise.split("T")[1]}</span>
-                  </span>
-                  <span className="font-narrow text-galv-dim flex items-center gap-1">
-                    <svg viewBox="0 0 24 24" className="w-3 h-3 text-iron-lt" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round">
-                      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-                    </svg>
-                    <span className="text-paper text-sm">{data.sunTimes.sunset.split("T")[1]}</span>
-                  </span>
-                </div>
+                <SunArc sunrise={data.sunTimes.sunrise} sunset={data.sunTimes.sunset} />
               </>
             )}
           </div>
