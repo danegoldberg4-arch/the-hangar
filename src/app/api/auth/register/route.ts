@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
     result = await prisma.$transaction(async (tx) => {
       // Serializes the user-count check so only one concurrent signup can be
       // granted the initial admin role.
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('the-hangar-registration'))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('the-hangar-registration'))`;
 
       const userCount = await tx.user.count();
       const isFirstUser = userCount === 0;
