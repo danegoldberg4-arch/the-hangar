@@ -100,10 +100,11 @@ export async function POST(request: NextRequest) {
 
   let result: RegistrationResult;
   try {
-    result = await prisma.$transaction(async (tx) => {
-      // Serializes the user-count check so only one concurrent signup can be
-      // granted the initial admin role.
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('the-hangar-registration'))`;
+    result = await prisma.$transaction(
+      async (tx) => {
+        // Serializes the user-count check so only one concurrent signup can be
+        // granted the initial admin role.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('the-hangar-registration'))`;
 
       const userCount = await tx.user.count();
       const isFirstUser = userCount === 0;
@@ -141,7 +142,12 @@ export async function POST(request: NextRequest) {
       });
 
       return { ok: true, user };
-    });
+      },
+      {
+        maxWait: 20_000,
+        timeout: 25_000,
+      }
+    );
   } catch (error) {
     console.error("[register] account creation failed", error);
     return NextResponse.json(

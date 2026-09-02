@@ -72,7 +72,8 @@ async function consumeAuthRateLimits({
     };
   });
 
-  const rows = await prisma.$transaction(async (tx) => {
+  const rows = await prisma.$transaction(
+    async (tx) => {
     const consumed: Array<
       RateLimitRow & {
         dimension: AuthRateLimitDimension;
@@ -143,7 +144,12 @@ async function consumeAuthRateLimits({
     `;
 
     return consumed;
-  });
+    },
+    {
+      maxWait: 20_000,
+      timeout: 25_000,
+    }
+  );
 
   const blocked = rows.filter((row) => row.attempts > row.limit);
   return {
