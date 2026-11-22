@@ -1,3 +1,5 @@
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
 const API_VERSION = "v21.0";
@@ -41,6 +43,19 @@ export async function sendWhatsAppMessage(
     console.error("[whatsapp] Send error:", error);
     return false;
   }
+}
+
+export function hasValidWhatsAppSignature(
+  rawBody: string,
+  signatureHeader: string | null,
+  appSecret: string | undefined
+): boolean {
+  if (!appSecret || !signatureHeader) return false;
+
+  const expected = `sha256=${createHmac("sha256", appSecret).update(rawBody).digest("hex")}`;
+  const suppliedDigest = createHash("sha256").update(signatureHeader).digest();
+  const expectedDigest = createHash("sha256").update(expected).digest();
+  return timingSafeEqual(suppliedDigest, expectedDigest);
 }
 
 export function verifyWebhook(mode: string | null, token: string | null): boolean {

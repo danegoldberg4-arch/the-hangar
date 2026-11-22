@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { neonTransactionOptions } from "@/lib/neon-transaction";
 import {
   clientIpFromRequest,
   hashAuthRateLimitKey,
@@ -145,10 +146,7 @@ async function consumeAuthRateLimits({
 
     return consumed;
     },
-    {
-      maxWait: 20_000,
-      timeout: 25_000,
-    }
+    neonTransactionOptions
   );
 
   const blocked = rows.filter((row) => row.attempts > row.limit);

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { requireUser } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { setDevicePower } from "@/lib/integrations/tapo";
 import { parseAutomation, serializeAutomation } from "@/lib/plugs";
@@ -7,6 +8,9 @@ export const maxDuration = 30;
 
 
 export async function GET() {
+  const access = await requireUser();
+  if (!access.ok) return access.response;
+
   try {
     const plugs = await prisma.smartPlug.findMany({
       orderBy: { name: "asc" },
@@ -18,6 +22,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const access = await requireUser();
+  if (!access.ok) return access.response;
+
   try {
     const body = await request.json();
     const plug = await prisma.smartPlug.create({
@@ -39,6 +46,9 @@ export async function PATCH(
   request: NextRequest,
   ctx: RouteContext<"/api/plugs/[id]">
 ) {
+  const access = await requireUser();
+  if (!access.ok) return access.response;
+
   const { id } = await ctx.params;
   const body = await request.json();
 
@@ -124,6 +134,9 @@ export async function DELETE(
   _req: NextRequest,
   ctx: RouteContext<"/api/plugs/[id]">
 ) {
+  const access = await requireUser();
+  if (!access.ok) return access.response;
+
   const { id } = await ctx.params;
   try {
     await prisma.smartPlug.deleteMany({ where: { id } });
