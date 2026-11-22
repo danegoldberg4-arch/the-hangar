@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyWebhook, sendWhatsAppMessage } from "@/lib/whatsapp/client";
+import { hasValidWhatsAppSignature, verifyWebhook, sendWhatsAppMessage } from "@/lib/whatsapp/client";
 import {
   matchRestockItems,
   matchMaintenanceItems,
@@ -57,8 +57,30 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const appSecret = process.env.WHATSAPP_APP_SECRET;
+  if (!appSecret) {
+    return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
+  }
+
+  let rawBody: string;
   try {
-    const body = await request.json();
+    rawBody = await request.text();
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (
+    !hasValidWhatsAppSignature(
+      rawBody,
+      request.headers.get("x-hub-signature-256"),
+      appSecret
+    )
+  ) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const body = JSON.parse(rawBody);
 
     // Meta webhook verification
     if (body.object === "whatsapp_business_account") {

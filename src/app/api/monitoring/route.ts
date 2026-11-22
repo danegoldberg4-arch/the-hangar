@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireUser } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { getLatestPower, fetchPowerData } from "@/lib/integrations/selectlive";
 import { fetchCurrentWeather, fetchSunTimes } from "@/lib/integrations/forecast";
@@ -8,6 +9,9 @@ export const maxDuration = 15;
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const access = await requireUser();
+  if (!access.ok) return access.response;
+
   const now = new Date();
   const fifteenMinAgo = new Date(now.getTime() - 15 * 60 * 1000);
 

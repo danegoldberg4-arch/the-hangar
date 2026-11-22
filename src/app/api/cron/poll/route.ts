@@ -5,7 +5,9 @@ import { hasValidBearerToken } from "@/lib/bearer-auth";
 import { pruneTelemetry } from "@/lib/integrations/retention";
 import type { ObservationMeta } from "@/lib/integrations/freshness";
 
-export const maxDuration = 30;
+// Cleanup waits up to 20s for Neon compute to wake, then up to 25s to delete
+// old rows. The function limit has to cover that whole wait.
+export const maxDuration = 60;
 
 export async function GET(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;

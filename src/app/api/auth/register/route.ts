@@ -2,6 +2,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { consumeRegistrationRateLimits } from "@/lib/auth-rate-limit";
+import { neonTransactionOptions } from "@/lib/neon-transaction";
 import bcrypt from "bcryptjs";
 export const maxDuration = 30;
 
@@ -143,10 +144,7 @@ export async function POST(request: NextRequest) {
 
       return { ok: true, user };
       },
-      {
-        maxWait: 20_000,
-        timeout: 25_000,
-      }
+      neonTransactionOptions
     );
   } catch (error) {
     console.error("[register] account creation failed", error);
